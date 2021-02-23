@@ -1,0 +1,23 @@
+set term pos portrait color solid
+set output 'pp.ps'
+set size square 1
+FIT_WSSR=1.e10
+FIT_LIMIT=1.e-9
+FIT_STDFIT=1.e10
+set fit errorvariables
+
+k(x)=c*(x**b)*exp(d/x-a*x)
+unset param
+c=0.00001
+ b= 0.2149069E+01 
+ a=  0.00001
+ d=  0.001
+  
+
+fit [0:5000] k(x)  'pp' u 1:($2) via c,b,a,d
+
+set print "qq" 
+print c,b,a,d
+print FIT_WSSR,FIT_STDFIT
+
+p 'pp' u 1:($2) w l,k(x) w p lt 3 pt 6 ps 1.5

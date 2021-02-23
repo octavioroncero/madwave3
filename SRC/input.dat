@@ -1,0 +1,103 @@
+&INPUTGRIDBASE
+   NPUN1=        256, RMIS1= 0.01d0 ,   RFIN1=  30.d0    , NPUN1MIN=        64,
+   NPUN2=        620,   RMIS2= 0.01d0,  RFIN2=  36.d0     ,
+   NANGU=        160,   
+   JTOT=          0,    IOMMIN=          0,   IOMMAX=          0,  IPARITY=          1,
+   INC=          1, J0=          0,
+   NELECMAX=          1,
+     JINI=          0, JMAX=          20,
+   NVINI=          0,   NVMAX=         2,
+   NVREF=          0,   JREF=          0,   IOMREF=          0,   IELECREF=          1,
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!  absorcion
+&inputabsorcion
+      absalp1=0.0002d0, absr1=16.d0, n1expo=6, ninterv1=2,
+      absalp2=0.00002d0, absr2=16.d0, n2expo=6, ninterv2=2
+/
+&INPUTWRITE
+   iwrt_pot=0
+   iwrt_wvp=0
+   iwrt_reac_distri=0
+   n1plot=1
+   n2plot=1
+   nangplot=1
+!!!!!!!!!!!!!!!!!!!!!!!!!!! collision: initial wavepacket
+&inputcol
+   Rcolini_ang=15.d0
+   ecol_ev=0.23557d0
+   deltaE_ev=0.11779d0
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! flux
+&inputflux
+      r1flux_ang=11.d0
+      netot=1000
+      ekinmin_eV=0.001d0
+      ekinmax_eV=1.d0
+      ncontfile=0
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  bnd for photo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!! products
+&inputprod
+! iprod  ! =0 no products, =1 uses product Jacobi coordinates, =2 uses reactant Jacobi coordinates
+iprod=2  ! =0 no products state distribution,
+         ! =1 using products Jacobi coordinates for propa,
+         ! =2 using reactants Jacobi coordinates,
+         !    transforming to products to extract s2s properties
+      nviniprod=0,   nvmaxprod=5,
+      jiniprod=0,    jmaxprod=38
+      iomminprod=0!, iommaxprod=0 ! if commented iommaxprod=Jtot
+       Rbalinprod=11.d0
+       n2prod1=150 !  if commented n2prod1=npun2
+       nangproj1=30
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! time integration
+&inputtime
+      ntimes = 1000
+      nloop = 90
+      kminelastic=2500
+/
+&inputpotmass
+!-----------> masses(in amu) and potential(in eV) cut data
+   system='O^+ +H2'
+   xm0=2.01410178d0
+   xm1=1.007825d0
+   xm2=15.99491463d0
+   VcutmaxeV=4.00d0
+   radcutmaxeV=5.d0
+   rotcutmaxeV=5.d0
+/
+!-------------> to get the spectrum by "cheby-transform to Energy"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! process
+&inputprocess
+       iphoto=0   ! =0 for collisions, =1 electric dipole absorption, =2, bright approximation
+/
+&INPUTBND
+   JTOTINI=          0,
+   IPARINI=         +1,
+   NVBOUND=          1,
+   NPROCBND=          4,
+   MAXBNDDIM=     100000,
+   IGRIDBND=          0,
+/
+&inputEspectro
+   Emin=-8.5d0   ! in eV
+   Emax=1.d0    ! in eV
+   ne=10001
+   xkgam=0.001
+   kmax=1000000
+/
+&sigmaS2prod
+Jtotmax=400
+nCalc=23
+nESigma=991,EminSigma_eV=0.001,EmaxSigma_Ev=1.d0
+/
+&InputRateSigma
+   Tempmin=10.d0
+   Tempmax=1000.d0
+   ntemp=100
+   extrapolation=1
+   Afactor_angstroms2eV=15.d0
+   Epower=-0.5d0
+   EMinextra_eV=1.d-5
+   nEextra=10000
+/

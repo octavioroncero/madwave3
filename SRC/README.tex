@@ -1,0 +1,66 @@
+
+MAIN Programs: (should contain MPI initialization)
+   
+
+MODULES:
+
+1. mod_GridYpara_01y2.f :  First module which initialize paralelization and determines radial and angular grids
+                          reads na
+         
+         contain subroutines:
+                                  1.1. input_grid:  Reads /inputgridbase/ namelist in ``input.dat'' file
+                                                   with grid and basis data in a 01-2 Jacobi coordinates in body-fixed
+                                                   and determines grids and no. of points
+
+                                  1.2. paralelizacion: based on the no. of Omega proyections
+                                                   and angular grids, factorize the calculation
+                                                   among different processors (nproc) used and initialized
+                                                   in the main program
+                       
+2. mod_pot_01y2.f: Determines the potential and write (pot1) or read (pot2) it
+
+          contains subroutines:
+                                  2.1. pot0:  Reads /inputpotmass/ namelist in ``input.dat'' file
+                                             to determine the ``masses'' of the 01 + 2 system and ``vcutmaxeV''
+                                             and initialize the potential calculation, calling to
+                                                               ``setxbcpotele''
+                                             to determine features of the electronic states used
+
+                                  2.2. pot1: calculates the potential in the grid, and writes the values
+                                             below ``vcutmaxeV'', to reduce the grid, in files pot/pot.IANG.dat
+                                             where IANG is an index determininig the angular value in the grid used
+                                             Uses
+                                                              ``potelebond'' user provide routine to generate potential
+                                                                             only used to generate potential
+                                                                             so that in normal wave-packet calculations
+                                                                             a general version can be used in precompiled 
+                                                                             version of the whole program
+                                                              ``DIAGON'' in liboctdyn.f library of general purpose provided here
+            
+3. mod_baseYfunciones.f: Determines basis set functions quantum numbers, angular functions 
+                         and radial phi_vj functions of the 01 fragment
+
+          contains subroutines:
+                                 
+                                  3.1. basis: determines rotational-electronic basis set of the calculations
+                                               with the data previously read in ``input_grid'' routine
+                                               and distributes them among processors
+             
+                                  3.2. angular_functions: determines angular functions d^j_mm(gamma_i)
+                                               in the angular grid of the calculation.
+                                               Uses
+                                                     ``dwigner''  in liboctdyn library provided here
+
+                                  3.3. write_radial_functions01: determines radial phi^e_vj(r=R1_i) 
+                                               for each electronic state ``d'' considered to be diabatic
+                                               at long 01 --- 2 distances. 
+                                               Used to project the wavepacket along propagation and determine final
+                                               state distribution. Also, one is used to determine initial
+                                               wavepacket in collisions from a particular v_{ref} j_{ref}
+                                               Uses
+                                                       ``tqli'' adapted from Numerical Recipies provided here
+                                                       ``schr'' provided in libocdyn
+                                                       ``splset,splinq'' provided in liboctdyn
+                                               writes the energies and functions in ``cont.bcwf''
+
+                                  3.4. read_radial_functions01:

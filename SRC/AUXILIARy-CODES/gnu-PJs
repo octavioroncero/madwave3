@@ -1,0 +1,5 @@
+
+do for[i=2:200]{
+p 'PJ.dat' u 1:(column(i)) w l
+pause -1
+}

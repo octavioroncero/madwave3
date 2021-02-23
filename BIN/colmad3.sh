@@ -1,0 +1,64 @@
+dir=~/Dropbox/MadWave3/git-madwave3/SRC
+dir2=$dir/AUXILIARy-CODES
+dir3=$dir/bound-lanz
+dir4=$dir/photo
+
+pot=~/Dropbox/MadWave3/MadWave3-v6/
+
+######################  compiling modules
+
+      mpif77 -c  $dir/mod_gridYpara_01y2.f
+      mpif77 -c  $dir/mod_pot_01y2.f
+      mpif77 -c  $dir/mod_baseYfunciones_01y2.f
+      mpif77 -c  $dir/mod_Hphi_01y2.f
+      mpif77 -c  $dir/mod_photoini_01y2.f
+      mpif77 -c  $dir/mod_colini_01y2.f
+      mpif77 -c  $dir/mod_absorcion_01y2.f
+      mpif77 -c  $dir/mod_flux_01y2.f
+      mpif77 -c  $dir/mod_coortrans01_02.f
+      mpif77 -c  $dir3/mod_lanczos_01y2.f
+
+######################  mad3.out
+rm mad3.out
+
+mpif77 -O3 -o mad3.out  mod_colini_01y2.o  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
+       mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o \
+       mod_absorcion_01y2.o mod_flux_01y2.o mod_coortrans01_02.o\
+       $dir/main_madwave3.f $dir/liboctdyn.f \
+       $dir/fit_general.f $dir/dipele_general.f \
+ -lfftw3
+######################  mad3.out
+rm bndgrid.out
+mpif77 -O3  -o bndgrid.out  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
+       mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o\
+       mod_absorcion_01y2.o mod_lanczos_01y2.o\
+       $dir3/main_boundlanz.f $dir/liboctdyn.f $dir3/liboctdynlanz.f \
+       $dir/fit_general.f $dir/dipele_general.f \
+ -lfftw3
+
+######################  distri.out & distriREAC.out
+rm distri.out distriREAC.out
+gfortran  -O3 -o distri.out $dir2/distriwvp.f $dir/liboctdyn.f
+gfortran  -O3 -o distriREAC.out $dir2/distriREACwvp.f $dir/liboctdyn.f
+
+######################  crp.out & cip.out
+rm cip.out crp.out
+gfortran  -O3 -o crp.out $dir2/CRP-fast.f $dir/liboctdyn.f
+gfortran  -O3 -o cip.out $dir2/CIP-fast.f $dir/liboctdyn.f
+
+######################  rate.out & rates2s.out
+rm rate.out rates2s.out
+gfortran  -O3 -o rate.out $dir2/rateFromSigma.f $dir/liboctdyn.f
+gfortran  -O3 -o rates2s.out $dir2/rate-s2s-fromCRP-extrapolation.f
+
+######################  sigma.out 
+rm sigma.out
+mpif77  -O3 -o sigma.out $dir2/sigmaFromS2prod.f $dir/liboctdyn.f
+######################  cheby-spectra.out 
+rm cheby-spectra.out
+mpif77  -O3 -o cheby-spectra.out $dir4/cheby-spectra.f 
+
+echo "10 executable codes 9: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out rate.out rates2s.out sigma.out  cheby-spectra.out"
+
+echo "removing *.o and *.mod"
+rm -f *.o *.mod
