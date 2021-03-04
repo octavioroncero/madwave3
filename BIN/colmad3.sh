@@ -1,9 +1,9 @@
-dir=~/Dropbox/MadWave3/git-madwave3/SRC
+dir=../SRC
 dir2=$dir/AUXILIARy-CODES
 dir3=$dir/bound-lanz
 dir4=$dir/photo
 
-pot=~/Dropbox/MadWave3/MadWave3-v6/
+pot=../SRC
 
 ######################  compiling modules
 
@@ -58,7 +58,7 @@ mpif77  -O3 -o sigma.out $dir2/sigmaFromS2prod.f $dir/liboctdyn.f
 rm cheby-spectra.out
 mpif77  -O3 -o cheby-spectra.out $dir4/cheby-spectra.f 
 
-echo "10 executable codes 9: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out rate.out rates2s.out sigma.out  cheby-spectra.out"
+echo "10 executable codes: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out rate.out rates2s.out sigma.out  cheby-spectra.out"
 
 echo "removing *.o and *.mod"
 rm -f *.o *.mod

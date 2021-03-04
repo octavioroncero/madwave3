@@ -368,17 +368,17 @@ c            write(ifileauto,*)0,1.d0
          do iprocbnd=0,nprocbnd-1
             if(iparini.eq.1)then
                write(filebnd
-     &         ,'("../../bndJ",i1,"p/bnd.iv",i3.3,".ip",i3.3)')
+     &         ,'("../bndJ",i2.2,"p/bnd.iv",i3.3,".ip",i3.3)')
      &                             Jtotini,nvbound,iprocbnd
 
-               write(filegrid,'("../../bndJ",i1,"p/grid.ip",i3.3)')
+               write(filegrid,'("../bndJ",i2.2,"p/grid.ip",i3.3)')
      &                           Jtotini,iprocbnd
             elseif(iparini.eq.-1)then
                write(filebnd
-     &         ,'("../../bndJ",i1,"m/bnd.iv",i3.3,".ip",i3.3)')
+     &         ,'("../bndJ",i2.2,"m/bnd.iv",i3.3,".ip",i3.3)')
      &                             Jtotini,nvbound,iprocbnd
 
-               write(filegrid,'("../../bndJ",i1,"m/grid.ip",i3.3)')
+               write(filegrid,'("../bndJ",i2.2,"m/grid.ip",i3.3)')
      &                           Jtotini,iprocbnd
             else
                write(6,*)' no good iparini =',iparini
@@ -540,7 +540,7 @@ c     &                 ,ir2bnd(ibnd),iabs(iq)
 *             Numerical radial function in rp
       write(6,*)'   reading r functions for the wvp grid'
       call flush(6)
-      frpini='../../bndele/rpwf1'
+      frpini='../bndele/rpwf1'
       write(6,"(/,5x,'Openining ifile= ',i3,' file: ',a40)")ifile
      &                                                      ,frpini
        open(ifile,file=frpini,status='old')
@@ -560,7 +560,7 @@ c     &                 ,ir2bnd(ibnd),iabs(iq)
 
        write(6,*)'    reading R functions for the wvp grid'
        call flush(6)
-       fRgini='../../bndele/Rgwf1'
+       fRgini='../bndele/Rgwf1'
        write(6,"(/,5x,'Openining ifile= ',i3,' file: ',a40)")ifile
      &                                                      ,fRgini
        open(ifile,file=fRgini,status='old')
@@ -578,9 +578,9 @@ c     &                 ,ir2bnd(ibnd),iabs(iq)
 *        Coefficient and basis set of the initial state
 
       if(iparini.gt.0)then
-          write(fcoef,'("../../bndele/Xlie.J",i2.2,".p.j0")')Jtotini
+          write(fcoef,'("../bndele/Xlie.J",i2.2,".p.j0")')Jtotini
       else
-          write(fcoef,'("../../bndele/Xlie.J",i2.2,".m.j0")')Jtotini
+          write(fcoef,'("../bndele/Xlie.J",i2.2,".m.j0")')Jtotini
       endif
       write(6,*)' Reading coefficients in file= ',fcoef
       call flush(6)

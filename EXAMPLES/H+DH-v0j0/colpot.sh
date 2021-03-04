@@ -1,4 +1,4 @@
-dir=../../SRC/madwave3
+dir=../../SRC
 pot=../../PES/H3
 
 mpif77  -O3 -o pot.out $dir/mod_gridYpara_01y2.f $dir/mod_pot_01y2.f $dir/mod_baseYfunciones_01y2.f \
