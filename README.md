@@ -1,5 +1,4 @@
-====
-Madwave3: quantum wavepacket of triatomic systems  
+Madwave3: quantum wave packet program for triatomic systems  
 ====
 
 It is a fortran77 code, parallelized with MPI and openMP,
@@ -41,25 +40,25 @@ that will create the directory madwave3 with 4 sub-directories
 
 For the instalation of the general purpose program::
 
-$ cd BIN
+$ cd BIN &
 $ source ./colmad3.sh
 
 and it will create 10 executables
 
-bndgrid.out  cheby-spectra.out  cip.out  colmad3.sh  crp.out  distri.out  distriREAC.out  mad3.out  rate.out  rates2s.out  sigma.out  
+bndgrid.out  cheby-spectra.out  cip.out   crp.out  distri.out  distriREAC.out  mad3.out  rate.out  rates2s.out  sigma.out  
 
 which are independent on the potential used. 
 
 mad3.out (and bndgrid.out) read the potential, fragments wave functions and electric dipole moments in
 
-../pot  ../func ../dip ../bnd  (the 2 last in the case of photodissociation)
+../pot  ../func ../dip ../bnd  (the  last two  in the case of photodissociation)
 
 in which the user-provided potential program write the required information.
 
 An example (for H+HD  using the BKMP2  PES) can be found in directory
 EXAMPLES/H+DH-v0j0::
 
-$ ./colpot.sh
+$ ./colpot.sha &
 $ ./pot.out
 
 will generate that information.
