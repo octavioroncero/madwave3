@@ -1,7 +1,7 @@
-Madwave3: quantum wave packet program for triatomic systems  
-====
+# Madwave3: quantum wave packet program for triatomic systems  
 
-It is a fortran77 code, parallelized with MPI and openMP,
+
+It is a fortran code, parallelized with MPI and openMP,
 for the quantum propagation of wave packets describing the dynamics of triatomic systems,
  for treating state-to-state reactive and inelastic scattering::
 
@@ -26,23 +26,28 @@ also a bound state program, bndgrid.out, to calculate the initial vibrational
 state for photodissociation. There are other auxiliary programs to
 calculate the reactive/inelastic cross sections
 
-Installation
-============
+## Installation
 
 All source programs (in fortran) and examples are downloaded by cloning
 the repository::
 
-$ git clone https://github.com/octavioroncero/madwave3
+```
+ git clone https://github.com/octavioroncero/madwave3
+```
 
 that will create the directory madwave3 with 4 sub-directories
 
+```
       BIN  EXAMPLES  PES  SRC
+```
 
 For the instalation of the general purpose program::
 
+```
 $ cd BIN 
 
 $ source ./colmad3.sh
+```
 
 and it will create 10 executables
 
