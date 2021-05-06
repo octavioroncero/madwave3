@@ -348,9 +348,12 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                arg=r*pini
-               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
-               zexpo=dcmplx(-g,f)
-               zfft=zfft+zgaussr(ir2)*zexpo
+               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa)
+               if(ekinini.gt.erot)then
+                  CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+                  zexpo=dcmplx(-g,f)
+                  zfft=zfft+zgaussr(ir2)*zexpo
+               endif
             enddo
             zfft=zfft*ahgauss/2.d0/pi
             paqini=dreal(zfft*dconjg(zfft))
@@ -371,8 +374,12 @@ c            endif
             else
                pfin=0.d0
             endif
-            S2prodfac(iv,j,iele)=
-     &                 hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
+            if(paqini.lt.1.d-30)then
+               S2prodfac(iv,j,iele)=0.d0
+            else
+               S2prodfac(iv,j,iele)=
+     &              hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
+            endif
          enddo
          enddo
          enddo

@@ -467,7 +467,10 @@
          do iomref0=-jref,jref
             CRPomg(iomref0)=0.d0
          enddo
-      write(10,'(1000(1x,e15.7))')enerdifeV,(PJ(iedif,Jt),Jt=0,Jtotmax)
+         do Jt=0,Jtotmax
+            if(PJ(iedif,Jt).lt.1.d-50)PJ(iedif,Jt)=0.d0
+         enddo
+      write(10,'(1000(1x,e16.7))')enerdifeV,(PJ(iedif,Jt),Jt=0,Jtotmax)
          do iv=nv0,nv1
             CRPv(iv)=0.d0
 

@@ -222,6 +222,11 @@
          do ie=1,nESigma
             E=EminSigma+dble(ie-1)*dE
             E_eV=E*ceVcm/conve
+            do Jtot=0,Jtotmax
+               if(PJ(ie,Jtot,iom).lt.1.d-50)then
+                       PJ(ie,Jtot,iom)=0.d0
+               endif
+            enddo
             write(10,'(1000(1x,e15.7))')E_eV
      &                 ,(PJ(ie,Jtot,iom),Jtot=0,Jtotmax)
          enddo
@@ -237,6 +242,11 @@
          do ie=1,nESigma
             E=EminSigma+dble(ie-1)*dE
             E_eV=E*ceVcm/conve
+            do Jtot=0,Jtotmax
+               if(PJprod(ie,Jtot,iom).lt.1.d-50)then
+                       PJprod(ie,Jtot,iom)=0.d0
+               endif
+            enddo
             write(10,'(1000(1x,e15.7))')E_eV
      &                 ,(PJprod(ie,Jtot,iom),Jtot=0,Jtotmax)
          enddo

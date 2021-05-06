@@ -441,10 +441,10 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa0)
-               arg=r*pini
-               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
 
                if(ekinini.ge.erot)then
+                 arg=r*pini
+                 CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
                  zexpo=dcmplx(-g,f)
                  zfft=zfft+dcmplx(rgaussr(ir2),0.d0)*zexpo
                endif
