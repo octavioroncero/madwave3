@@ -501,6 +501,8 @@
             else
                pr1(1,iang)=0.d0
                p2r1(1,iang)=0.d0
+               xk1max=0.d0
+               xk1min=0.d0
             endif
 * for R_2 = R
             n2=npun2

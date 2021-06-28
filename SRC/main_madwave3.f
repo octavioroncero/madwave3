@@ -137,10 +137,10 @@ c! the partition.
 ! reactants and products functions calculation
 
       call angular_functions
-      
+
       call radial_functions01_read
 
-      if(iprod.gt.0)then
+      if(iprod.gt.0.and.npun1.ne.1)then
 
          call product_radialf_read
 
@@ -177,8 +177,9 @@ c! the partition.
 !     initialize total flux quantities
 
       call ini_flux
+      
 ! for flux on 02 diatomics in collisions (iphoto=0) of photodissociation (iphoto>0)
-      if(iprod.eq.2)then
+      if(iprod.eq.2.and.npun1.gt.1)then
          call ini_transcoor
       endif
 
@@ -277,7 +278,7 @@ c! the partition.
       endif
       iloop=iloop0
       it=iit0
-      call check(time,it,iloop)
+      call check(time,xnorm1tot,it,iloop)
      
       do iloop=iloop0,nloop+iloop0
 
@@ -307,13 +308,15 @@ c! the partition.
             enddo
 
             call CoefEcheby(it)
-            call totalflux_k(it,kminelastic)
+            
+            if(npun1.gt.1)call totalflux_k(it,kminelastic)
+            
             call Cvjflux_k(it,kminelastic)
-            if(iprod.eq.2)then
+            if(iprod.eq.2.and.npun1.gt.1)then
                call prodpaq
                call prodcvj
             endif
-            call check(time,it,iloop)
+            call check(time,xnorm1tot,it,iloop)
 
             if(idproc == 0)then
               if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.1)then
@@ -333,7 +336,7 @@ c! the partition.
          iit0=iit0+ntimes
          call flush(6)
 
-         call totalflux
+         if(npun1.gt.1)call totalflux
          call wvpcont(iit0,iloop,indt)
          
          call MPI_BARRIER(MPI_COMM_WORLD, IERR)
@@ -354,7 +357,12 @@ c! the partition.
         
          call MPI_BARRIER(MPI_COMM_WORLD, IERR)
 
-      enddo  ! iloop
+         if(xnorm1tot.lt.1.d-8)then
+            write(6,*)' norm = ',xnorm1tot,' below threshold: stop '
+            stop
+         endif
+
+      enddo  ! iloop,xnorm1tot
 
       call MPI_FINALIZE(ierr)
 
@@ -364,7 +372,7 @@ c! the partition.
 
 !----------------------------------------------------------
 
-      subroutine check(time,it,iloop)
+      subroutine check(time,xnorm1tot,it,iloop)
       use mod_gridYpara_01y2
       use mod_pot_01y2
       use mod_baseYfunciones_01y2
@@ -521,6 +529,7 @@ c! the partition.
       integer :: iit0,iloop,indt
       real*8 :: S2reac,Av,S2no
       real*8 :: vibprod(nviniprod:nvmaxprod)
+      real*8 :: rotdistri(jini:jmax)
 
       real*8 :: S2pro(nviniprod:nvmaxprod,jiniprod:jmaxprod
      &                      ,iomminprod:iommaxprod)
@@ -528,14 +537,20 @@ c! the partition.
 
 *     writes information at each loop in time
 
-      write(name,'("S2prod.v",i2.2,".J",i3.3,".k",i5.5)')
+      if(npun1.gt.1)then
+         write(name,'("S2prod.v",i2.2,".J",i3.3,".k",i5.5)')
      &              nvref,Jtot,iloop
-      open(20,file=name,status='unknown')
-
+         open(20,file=name,status='unknown')
+      else
+         write(name,'("S2mat.J",i3.3,".k",i5.5)')
+     &              Jtot,iloop
+         open(20,file=name,status='unknown')
+      endif
       do ie=1,netot
 
 ****> state-2-state for reactants
 
+         rotdistri(:)=0.d0
          S2reac=0.d0
          do ican=1,ncan
             iele=nelebas(ican)
@@ -545,28 +560,30 @@ c! the partition.
                   Av=dreal(zzz*dconjg(zzz))
                   S2(iv,j,ican)=Av*S2factor(ie,iv,j,iele)
                   S2reac=S2reac+S2(iv,j,ican)
+                  rotdistri(j)=rotdistri(j)+S2(iv,j,ican)
                enddo
             enddo
          enddo
 
 !****> state-2-state for products
 
-         if(iprod.eq.1)then
-            S2no=0.d0
-            vibprod(:)=0.d0
-            do ican=1,ncan
-            iele=nelebas(ican)
-            do j=j00(ican),jmax,inc
+         if(npun1.gt.1)then
+            if(iprod.eq.1)then
+               S2no=0.d0
+               vibprod(:)=0.d0
+               do ican=1,ncan
+               iele=nelebas(ican)
+               do j=j00(ican),jmax,inc
                do iv=nvini,min0(nvmaxprod,noBCstates(j,iele))
                   vibprod(iv)=vibprod(iv)+S2(iv,j,ican)
                enddo
-            enddo
-            enddo
-         elseif(iprod.gt.1)then
-            S2no=0.d0
-            vibprod(:)=0.d0
-            S2pro(:,:,:)=0.d0
-            do iom=iomminprod,iommaxprod
+               enddo
+               enddo
+            elseif(iprod.gt.1)then
+               S2no=0.d0
+               vibprod(:)=0.d0
+               S2pro(:,:,:)=0.d0
+               do iom=iomminprod,iommaxprod
                do j=jiniprod,jmaxprod
                   do iv=nviniprod,nvmaxprod
                      zzz=zS2prod(ie,iv,j,iom)
@@ -576,36 +593,43 @@ c! the partition.
                      vibprod(iv)=vibprod(iv)+S2pro(iv,j,iom)
                   enddo
                enddo
-            enddo
-         endif
+               enddo
+            endif
 
 ***> printing total flux to products  
 
-         do iv=nviniprod,nvmaxprod
-            if(vibprod(iv).lt.1.d-90)vibprod(iv)=0.d0
-         enddo
-         if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
-         if(S2reac.lt.1.d-90)S2reac=0.d0
+            do iv=nviniprod,nvmaxprod
+               if(vibprod(iv).lt.1.d-90)vibprod(iv)=0.d0
+            enddo
+            if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
+            if(S2reac.lt.1.d-90)S2reac=0.d0
 
-         if(iprod.eq.0)then
-            write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+            if(iprod.eq.0)then
+               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,reacfct(ie)
-         elseif(iprod.eq.1)then
-            write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+            elseif(iprod.eq.1)then
+               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2reac*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &          ,(vibprod(iv)*photonorm,iv=nvini,min0(nvmaxprod,nvmax))
-         else
-            write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+            else
+               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,S2no*photonorm
      &            ,(vibprod(iv)*photonorm,iv=nviniprod,nvmaxprod)
 
+            endif
+         else                   ! npun1 rotdis
+
+            write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+     &             ,S2reac*photonorm
+     &            ,(rotdistri(j)*photonorm,j=jini,jmax)
+
          endif
-      enddo
+      enddo ! ie=1,ne
  
       close(20)
 

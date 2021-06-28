@@ -511,7 +511,7 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
 ! reference energy for iprod.ne.1
  
       ediatref=0.d0
-      if(iprod.ne.1)then
+      if(iprod.ne.1.and.npun1.gt.1)then
 
          ediatref=ediat(nvref,jref,ielecref)
            
@@ -603,11 +603,13 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
       close(10)
               
 !     substracting ref energy
-              
-      open(10,file='../func/eref',status='old')
-      read(10,*)ediatref
-      close(10)
-                       
+
+      ediatref=0.d0
+      if(npun1.gt.1)then
+         open(10,file='../func/eref',status='old')
+         read(10,*)ediatref
+         close(10)
+      endif                 
       write(6,*)' substracting ediatref to the diatomic energies'
  
       do ielec=1,nelec
@@ -626,7 +628,7 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
       write(6,*)
       do ielec=1,nelecmax
       do j=jini,jmax
-         if(noBCstates(j,ielec).gt.0)then
+         if(noBCstates(j,ielec).ge.nvini)then
             do iv=nvini,noBCstates(j,ielec)
 c            if(ediat(iv,j,ielec).gt.ediatref)then
                write(6,*)ielec,j,iv,ediat(iv,j,ielec)/(conve1*eV2cm)
@@ -639,6 +641,142 @@ c            endif
       
       return
       end subroutine radial_functions01_read
+!--------------------------------------------------
+      subroutine radial_functions01eq_write
+!--------------------------------------------------
+      use mod_gridYpara_01y2
+      use mod_pot_01y2 
+      
+      implicit none
+      include "mpif.h"
+      integer, parameter:: npunt=2000
+     
+      real*8 :: potmat(nelecmax,nelecmax)
+      real*8 :: rrefA(nelecmax)
+      real*8 :: rmis,rfin,ah,rg,ctet,xm,xz,r,rref,be,vasin,xl,eps,spl
+      real*8 :: e0,e2,vmean,xnorm,r1,xxx,a,b,vmin,xz1
+      integer :: ielec,irmin,ir,j,iv,maxit,ifail,iold,ir1,itry,nchan,kv
+      integer :: ierror,ie,je
+
+* temporal allocation of matrices
+
+      allocate(noBCstates(jini:jmax,nelecmax)
+     &       ,ediat(nvini:nvmax,jini:jmax,nelecmax)
+     &       ,fd(npun1,nvini:nvmax,jini:jmax,nelecmax)
+     &       , stat=ierror)
+
+      nointegerproc_mem=nointegerproc_mem+(jmax-jini+1)*nelecmax
+      norealproc_mem=norealproc_mem
+     &    +(nvmax-nvini+1)*(jmax-jini+1)*nelecmax *(1+npun1)
+      write(6,*)'norealproc_mem= ',norealproc_mem
+      write(6,*)'nointegerproc_mem= ',nointegerproc_mem
+      call flush(6)
+      
+      noBCstates(:,:)=0
+      ediat(:,:,:)=0.d0
+      fd(:,:,:,:)=0.d0
+      rrefA(:)=0.d0
+
+      write(6,*)
+      write(6,*)" ** reactant AB^j(k) (01 fragments) wvf energies",
+     &              " expanded in all elec. states **"
+      write(6,*)
+*a)  grid determination (in a.u.: de rest is in zots)
+
+      r=rmis1/convl
+      rg=100.d0
+      ctet=0.d0
+      xm=xm1reac*convm
+
+      if(nvmax.gt.nvini)then
+         write(6,*)'  nvmax= ',nvmax,' changed to nvini= ',nvini
+         nvmax=nvini
+      endif
+
+*b)  potential determination
+
+      do ielec=1,nelecmax
+
+         write(6,*)'---------> Ielectronic = ',ielec
+            call potelebond(r,rg,ctet,potmat,nelec,nelecmax)
+
+         rrefA(ielec)=r
+         rrefA(ielec)=rrefA(ielec)*convl
+         rref=rrefA(ielec)/convl
+         be=0.5d0/rref/rref/xm1reac/convm
+         be=be/conve
+         if(idproc.eq.0)then   
+            write(6,*)'           Be (eV) = ',be/8065.5d0
+     &               ,'  r_e(Angs.)= ',rrefA(ielec)
+     &               ,'  V_e (eV)= ',potmat(ielec,ielec)/conve/ev2cm  
+         endif
+         
+*c)  Loop in rotational quantum number
+
+         do j=jini,jmax
+            if(idproc.eq.0)write(6,*)'  ** j= ',j,' **'
+*d)   eigenvalues and eigenfunctions
+            noBCstates(j,ielec)=nvmax
+            do iv=nvini,nvmax
+                  xl=0.5d0*dble(j*(j+1))/xm
+                  e2=xl/r/r+potmat(ielec,ielec)
+                  ediat(iv,j,ielec)=e2/conve*conve1
+                  do ir1=1,npun1
+                     fd(ir1,iv,j,ielec)=1.d0
+                  enddo
+      
+                  write(6,'(2(2x,i4),4(2x,e15.7))')iv,kv
+     &               ,e2/conve/eV2cm
+                  call flush(6)
+            enddo ! iv=nvini=nvmax
+         enddo  ! j
+         
+      enddo  ! ielec
+
+ 
+      ediatref=0.d0
+
+         ediatref=ediat(nvref,jref,ielecref)
+           
+         write(6,*)' reference energy in reactants= '
+     &                                  ,ediatref/conve1/ev2cm
+
+         if(idproc.eq.0)then
+         open(10,file='func/eref',status='new')
+         write(10,*)ediatref
+         close(10)
+         endif
+
+! writing reactants functions
+
+         if(idproc.eq.0)then
+           open(10,file='func/bcwf',status='new')
+              do ielec=1,nelecmax
+              do j=jini,jmax
+                 noBCstates(j,ielec)=nvmax
+                 write(10,*)ielec,j,noBCstates(j,ielec)
+                 do iv=nvini,noBCstates(j,ielec)
+                    write(10,*)iv,ediat(iv,j,ielec)
+                    do ir1=1,npun1
+                       write(10,*)fd(ir1,iv,j,ielec)
+                    enddo
+                 enddo
+              enddo
+              enddo
+           close(10)
+         endif
+
+! dealocating 
+
+!      deallocate(noBCstates,ediat,fd)
+
+      return
+ 1100 format(2x,'v= ',i2,2x,'n.nodes= ',i2,2x,'E(approx)= ',d15.7,
+     & 2x,'E(exact)= ',d15.7)
+ 9994 format(2x,'v= ',i2,2x,'E= ',d15.7,2x,'B= ',d15.7)
+
+      end subroutine radial_functions01eq_write
+!--------------------------------------------------
 !--------------------------------------------------
       subroutine product_radialf_write
       use mod_gridYpara_01y2
@@ -837,6 +975,14 @@ c            endif
       open(10,file='../func/prodwf',status='old')
          do j=jiniprod,jmaxprod
             read(10,*)jj,noBCprod(j),nn2prod1,nnelec
+            if(nvmaxprod.lt.noBCprod(j))then
+               write(6,*)' nvmaxprod = ',nvmaxprod
+     &              ,'<noBCprod(j)=',noBCprod(j)
+     &              ,' in ../func/prodwf: please increase it input.dat'
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
             if(nn2prod1.ne.n2prod1)then
                write(6,*)' in product_radialf_read '
                write(6,*)'  in file ../func/prodwf '

@@ -335,6 +335,8 @@
       emin=emindistri*8065.5d0*conve1
       emax=emaxdistri*8065.5d0*conve1
       delta=(emax-emin)/dble(nener-1)
+      rfin=rcolini+1.d0
+      erot=hbr*hbr*pepe*0.5d0/(rfin*rfin*xmasa)
       do ie=1,nener
          e=emin+dble(ie-1)*delta
          ekinini=e!-ediatref
@@ -348,7 +350,6 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                arg=r*pini
-               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa)
                if(ekinini.gt.erot)then
                   CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
                   zexpo=dcmplx(-g,f)
@@ -374,7 +375,7 @@ c            endif
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-30)then
+            if(paqini.lt.1.d-15)then
                S2prodfac(iv,j,iele)=0.d0
             else
                S2prodfac(iv,j,iele)=

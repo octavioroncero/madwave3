@@ -243,6 +243,19 @@
      &          *(iommaxprod-iomminprod+1)
      &    +(n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
      &             *(iommaxprod-iomminprod+1)*ncanmax
+      if(imem.lt.0)then
+          write(6,*)' Be carefull: imem = ',imem,' < 0' 
+          write(6,*)' nbastot/nproc= ',nbastot/nproc
+          write(6,*)' second term = ',
+     &     (n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)*nelecmax
+     &          *(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
+     &          *(iommaxprod-iomminprod+1)
+          write(6,*)' third  term = ',
+     &     (n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
+     &             *(iommaxprod-iomminprod+1)*ncanmax
+      endif
+
+
       norealproc_mem=norealproc_mem+imem
       write(6,*)' transRgjac,prodwf,dtrans in changeini, proc= '
      &       ,idproc

@@ -87,199 +87,204 @@
          call flush(6)
       close(10)
 
-      r1flux=r1flux_ang
       ekinmin=ekinmin_eV*ev2cm*conve1
       ekinmax=ekinmax_eV*ev2cm*conve1
-
-      ir4flux=0
-      do ir1=1,npun1
-         r1=rmis1+dble(ir1-1)*ah1
-         if(r1.le.r1flux.and.ir1.gt.ir4flux)ir4flux=ir1
-      enddo
-      if(ir4flux.lt.0.and.ir4flux.gt.npun1)then
-         write(6,*)'  ir4flux = ',ir4flux,' out of range '
-         call flush(6)
-         call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-         stop
-      endif
-      write(6,*)' total flux evaluated at index ir4flux= ',ir4flux
-
-!     calculating vector to perform derivative d/dr1 with fft at ir4flux
-      
-      allocate(zAR1flux(npun1),zCkcheby(netot),apaqini(netot)
-     &       , stat=ierror)
-      norealproc_mem=norealproc_mem
-     &    +npun1*2+netot*2
-
-       box1=dble(npun1-1)*ah1
-      call fftmom(box1,npun1,npun1,xm1red,hbr,xpr1,xp2r1)
-      do m=1,npun1
-         delta2r=dble(ir4flux-m)*ah1
-         zAR1flux(m)=dcmplx(0.d0,0.d0)
-         do k=1,npun1
-            xk=xpr1(k)
-            zAR1flux(m) = zAR1flux(m)
-     &               + dcmplx(0.d0,xk)*cdexp(dcmplx(0.d0,xk*delta2r))    
-         enddo
-         zAR1flux(m) = zAR1flux(m)/dble(2*npun1)
-      enddo
-      
-! setting ir1flux(iang) at which flux is analized
-
-      allocate(ir1flux(nangu),nfluxproc(0:nproc-1)
-     &       , stat=ierror)
-      nointegerproc_mem=nointegerproc_mem+nangu+nproc
-     
-      ir1flux(:)=0
-
-      nflux=0
-      do ip=0,nproc-1
-         nfluxproc(ip)=0
-         do iang_proc=1,nanguproc
-            iang=indangreal(iang_proc,ip)
-           
-            do ican_proc=1,ncanproc(ip)
-               ican=ibasproc(ican_proc,ip)
-! ir1flux: distances in r1 at which flux is evaluated
-               do ir=1,npunreal(iang)
-                  ir1=indr1(ir,iang)
-                  r1=dble(ir1-1)*ah1+rmis1
-                  if(r1.le.r1flux.and.ir1.gt.ir1flux(iang))
-     &                                      ir1flux(iang)=ir1
-
-               enddo ! ir
-
-! nfluxproc(ip) and nflux
-               do ir=1,npunreal(iang)
-                  ir1=indr1(ir,iang)
-                  if(ir1.eq.ir1flux(iang).and.npun1.gt.1)then
-                     nflux=nflux+1
-                     nfluxproc(ip)=nfluxproc(ip)+1
-                  endif
-               enddo
-            enddo ! ican_proc
-          enddo ! iang_proc
-!          write(6,*)' for proc ',ip,'  nfluxproc= ',nfluxproc(ip)
-      enddo ! ip
-
-!  allocating matrices
-
-      nfluxprocdim=nfluxproc(idproc)
-     
-       allocate( zCR(netot,nfluxprocdim)
-     &             ,zCdR(netot,nfluxprocdim)
-     &             ,zfR2(npun1,nanguprocdim,ncanmax)
-     &             ,zfR1(npun2,nanguprocdim,ncanmax)
-     &             ,zfR1flux(npun2,nanguprocdim,ncanmax)
-     &             ,zR(npun2),zdR(npun2)
+! for reactants
+      allocate(rpopi(nvini:nvmax,jini:jmax,ncanmax)
+     &             ,funreac(nanguprocdim,npun1,ncanmax)  
      &             ,S2prodtot(netot),S2prod(netot)
      &             ,reacfct(netot)
-     &             ,indangflux(nfluxprocdim)
-     &             ,indcanflux(nfluxprocdim)
-     &             ,indr2flux(nfluxprocdim)
-     &             ,rpopi(nvini:nvmax,jini:jmax,ncanmax)
-     &             ,funreac(nanguprocdim,npun1,ncanmax)  
-     &       , stat=ierror)
-      if(ierror.ne.0)then
-        write(*,*)" error in initmem for flux "
-        stop
-      else
-        nointegerproc_mem=nointegerproc_mem+nfluxprocdim*3
-        imem=
-     &      netot*nfluxprocdim*2*2  ! complex number 
-     &    + (npun1+2*npun2)*nanguprocdim*ncanmax*2 ! complex number
-     &    + npun2*2*2 ! complex number
-     &    +netot*3
-     &    +(nvmax-nvini+1)*(jmax-jini+1)*ncanmax
-     &    +nanguprocdim*npun1*ncanmax       
-         norealproc_mem=norealproc_mem+imem
-         write(6,*)' zCR,zCdR,etc in iniflux, proc= '
-     &       ,idproc
-     &       ,' imem=',imem
-     &       ,' memory(Gb)= '
-     &       ,dble(imem*8)*1.d-9
-         call flush(6)
-      endif
-      
-      indangflux(:)=0
-      indcanflux(:)=0
-      indr2flux(:)=0
-       
-      zCR(:,:)=dcmplx(0.d0,0.d0)
-      zCdR(:,:)=dcmplx(0.d0,0.d0)
-      S2prodtot(:)=0.d0
-      reacfct(:)=0.d0
+     &             ,zfR2(npun1,nanguprocdim,ncanmax)
+     &             ,zCkcheby(netot),apaqini(netot)
+     &     , stat=ierror)
 
-      zfR2(:,:,:)=dcmplx(0.d0,0.d0)
-      zfR1(:,:,:)=dcmplx(0.d0,0.d0)
-      zfR1flux(:,:,:)=dcmplx(0.d0,0.d0)
-    
-
-!     determining indexes to evaluate flux
-
-      do ip=idproc,idproc
-         iflux=0
-         do iang_proc=1,nanguproc
-            iang=indangreal(iang_proc,ip)
-           
-            do ican_proc=1,ncanproc(ip)
-               ican=ibasproc(ican_proc,ip)
-               do ir=1,npunreal(iang)
-                  ir1=indr1(ir,iang)
-                  ir2=indr2(ir,iang)
-                  if(ir1.eq.ir1flux(iang).and.npun1.gt.1)then
-                     iflux=iflux+1
-                        indangflux(iflux)=iang
-                        indcanflux(iflux)=ican
-                        indr2flux(iflux)=ir2
-                  endif
-               enddo
-            enddo ! ican_proc
-          enddo ! iang_proc
-          write(6,*)' for proc ',ip,'  nfluxproc= ',nfluxproc(ip)
-      enddo ! ip
-
-! determining ir2balint for 01(v,j,Omega) flux
+!     determining ir2balint for 01(v,j,Omega) flux
 
       do ir2=1,npun2
          r2=rmis2+dble(ir2-1)*ah2
          if(r2.lt.absr2.and.ir2.gt.ir2balint)ir2balint=ir2
       enddo
 
-!     starting the allocation of S2 paraS2
-      if(iprod.eq.0)then
-         nviniprod=nvini
-         nvmaxprod=nvmax
-         jiniprod=jini
-         jmaxprod=jmax
-         iomminprod=iommin
-         iommaxprod=iommax
-      endif
-      if(iprod.ge.0)then
-         ierror=0
-         
-         allocate(etotS2(netot)
-     &  , S2factor(netot,nvini:nvmax,jini:jmax,nelecmax)
-     &  , S2(nvini:nvmax,jini:jmax,ncanmax)
-     &  , zS2(netot,nvini:nvmax,jini:jmax,ncanmax)
-     &  , Cvj(nvini:nvmax,jini:jmax,ncanmax)
-     &  , Cvjproc(nvini:nvmax,jini:jmax,ncanmax)
+      if(npun1.gt.1)then
+         r1flux=r1flux_ang
+         ir4flux=0
+         do ir1=1,npun1
+            r1=rmis1+dble(ir1-1)*ah1
+            if(r1.le.r1flux.and.ir1.gt.ir4flux)ir4flux=ir1
+         enddo
+         if(ir4flux.lt.0.and.ir4flux.gt.npun1)then
+            write(6,*)'  ir4flux = ',ir4flux,' out of range '
+            call flush(6)
+            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+            stop
+         endif
+         write(6,*)' total flux evaluated at index ir4flux= ',ir4flux
+      
+!     calculating vector to perform derivative d/dr1 with fft at ir4flux
+      
+         allocate(zAR1flux(npun1)
+     &       , stat=ierror)
+         norealproc_mem=norealproc_mem
+     &    +npun1*2+netot*2
+
+         box1=dble(npun1-1)*ah1
+         call fftmom(box1,npun1,npun1,xm1red,hbr,xpr1,xp2r1)
+         do m=1,npun1
+            delta2r=dble(ir4flux-m)*ah1
+            zAR1flux(m)=dcmplx(0.d0,0.d0)
+            do k=1,npun1
+               xk=xpr1(k)
+               zAR1flux(m) = zAR1flux(m)
+     &               + dcmplx(0.d0,xk)*cdexp(dcmplx(0.d0,xk*delta2r))    
+            enddo
+            zAR1flux(m) = zAR1flux(m)/dble(2*npun1)
+         enddo
+      
+! setting ir1flux(iang) at which flux is analized
+
+         allocate(ir1flux(nangu),nfluxproc(0:nproc-1)
+     &       , stat=ierror)
+         nointegerproc_mem=nointegerproc_mem+nangu+nproc
+     
+         ir1flux(:)=0
+
+         nflux=0
+         do ip=0,nproc-1
+            nfluxproc(ip)=0
+            do iang_proc=1,nanguproc
+               iang=indangreal(iang_proc,ip)
+           
+               do ican_proc=1,ncanproc(ip)
+                  ican=ibasproc(ican_proc,ip)
+! ir1flux: distances in r1 at which flux is evaluated
+                  do ir=1,npunreal(iang)
+                     ir1=indr1(ir,iang)
+                     r1=dble(ir1-1)*ah1+rmis1
+                     if(r1.le.r1flux.and.ir1.gt.ir1flux(iang))
+     &                                      ir1flux(iang)=ir1
+
+                  enddo ! ir
+
+! nfluxproc(ip) and nflux
+                  do ir=1,npunreal(iang)
+                     ir1=indr1(ir,iang)
+                     if(ir1.eq.ir1flux(iang).and.npun1.gt.1)then
+                        nflux=nflux+1
+                        nfluxproc(ip)=nfluxproc(ip)+1
+                     endif
+                  enddo
+               enddo ! ican_proc
+            enddo ! iang_proc
+!          write(6,*)' for proc ',ip,'  nfluxproc= ',nfluxproc(ip)
+         enddo ! ip
+
+!  allocating matrices
+
+         nfluxprocdim=nfluxproc(idproc)
+     
+          allocate( zCR(netot,nfluxprocdim)
+     &             ,zCdR(netot,nfluxprocdim)
+     &             ,zfR1(npun2,nanguprocdim,ncanmax)
+     &             ,zfR1flux(npun2,nanguprocdim,ncanmax)
+     &             ,zR(npun2),zdR(npun2)
+     &             ,indangflux(nfluxprocdim)
+     &             ,indcanflux(nfluxprocdim)
+     &             ,indr2flux(nfluxprocdim)
      &       , stat=ierror)
          if(ierror.ne.0)then
-           write(*,*)" error in initmem for paraS2reac "
-           call flush(6)
+           write(*,*)" error in initmem for flux "
            stop
-        else
-           norealproc_mem=norealproc_mem
-     &       +netot*(1+(nvmax-nvini+1)*(jmax-jini+1)*nelecmax)
-     &       +(nvmax-nvini+1)*(jmax-jini+1)*nelecmax*3
-     &       +netot*(nvmax-nvini+1)*(jmax-jini+1)*nelecmax*2              
-            write(6,*)'norealproc_mem= ',norealproc_mem
-            write(6,*)'nointegerproc_mem= ',nointegerproc_mem
+         else
+           nointegerproc_mem=nointegerproc_mem+nfluxprocdim*3
+           imem=
+     &      netot*nfluxprocdim*2*2  ! complex number 
+     &       + (npun1+2*npun2)*nanguprocdim*ncanmax*2 ! complex number
+     &       + npun2*2*2 ! complex number
+     &       +netot*3
+     &       +(nvmax-nvini+1)*(jmax-jini+1)*ncanmax
+     &       +nanguprocdim*npun1*ncanmax       
+            norealproc_mem=norealproc_mem+imem
+            write(6,*)' zCR,zCdR,etc in iniflux, proc= '
+     &          ,idproc
+     &          ,' imem=',imem
+     &          ,' memory(Gb)= '
+     &          ,dble(imem*8)*1.d-9
             call flush(6)
          endif
+      
+         indangflux(:)=0
+         indcanflux(:)=0
+         indr2flux(:)=0
+       
+         zCR(:,:)=dcmplx(0.d0,0.d0)
+         zCdR(:,:)=dcmplx(0.d0,0.d0)
+         S2prodtot(:)=0.d0
+         reacfct(:)=0.d0
+
+         zfR2(:,:,:)=dcmplx(0.d0,0.d0)
+         zfR1(:,:,:)=dcmplx(0.d0,0.d0)
+         zfR1flux(:,:,:)=dcmplx(0.d0,0.d0)
+    
+!     determining indexes to evaluate flux
+
+         do ip=idproc,idproc
+            iflux=0
+            do iang_proc=1,nanguproc
+               iang=indangreal(iang_proc,ip)
+           
+               do ican_proc=1,ncanproc(ip)
+                  ican=ibasproc(ican_proc,ip)
+                  do ir=1,npunreal(iang)
+                     ir1=indr1(ir,iang)
+                     ir2=indr2(ir,iang)
+                     if(ir1.eq.ir1flux(iang).and.npun1.gt.1)then
+                        iflux=iflux+1
+                        indangflux(iflux)=iang
+                        indcanflux(iflux)=ican
+                        indr2flux(iflux)=ir2
+                     endif
+                  enddo
+               enddo ! ican_proc
+            enddo ! iang_proc
+             write(6,*)' for proc ',ip,'  nfluxproc= ',nfluxproc(ip)
+         enddo ! ip
+
+      endif ! npun1>1
+
+!     starting the allocation of S2 paraS2
+         if(iprod.eq.0.or.npun1.eq.1)then
+            nviniprod=nvini
+            nvmaxprod=nvmax
+            jiniprod=jini
+            jmaxprod=jmax
+            iomminprod=iommin
+            iommaxprod=iommax
+         endif
+         if(iprod.ge.0)then
+            ierror=0
+         
+            allocate(etotS2(netot)
+     &     , S2factor(netot,nvini:nvmax,jini:jmax,nelecmax)
+     &     , S2(nvini:nvmax,jini:jmax,ncanmax)
+     &     , zS2(netot,nvini:nvmax,jini:jmax,ncanmax)
+     &     , Cvj(nvini:nvmax,jini:jmax,ncanmax)
+     &     , Cvjproc(nvini:nvmax,jini:jmax,ncanmax)
+     &       , stat=ierror)
+            if(ierror.ne.0)then
+              write(*,*)" error in initmem for paraS2reac "
+              call flush(6)
+              stop
+           else
+              norealproc_mem=norealproc_mem
+     &          +netot*(1+(nvmax-nvini+1)*(jmax-jini+1)*nelecmax)
+     &          +(nvmax-nvini+1)*(jmax-jini+1)*nelecmax*3
+     &          +netot*(nvmax-nvini+1)*(jmax-jini+1)*nelecmax*2              
+               write(6,*)'norealproc_mem= ',norealproc_mem
+               write(6,*)'nointegerproc_mem= ',nointegerproc_mem
+               call flush(6)
+            endif
         
-      endif ! iprod>0
+         endif ! iprod>0
 
 **>> reading information for continuing propagation
 
@@ -292,11 +297,11 @@
       
       if(it0.eq.0)then
          abstot=0.d0
-         zS2(:,:,:,:)=dcmplx(0.d0,0.d0)
+         if(npun1.gt.1)zS2(:,:,:,:)=dcmplx(0.d0,0.d0)
       else
          read(3,*)abstot,nflux,mcan
          close(3)
-         if(ncontfile.eq.1)then
+         if(ncontfile.eq.1.and.npun1.gt.1)then
             write(name,'("cont",i2.2,".S2")')idproc
             open(4,file=name,status='old',form='unformatted')
             read(4)zS2
@@ -385,6 +390,7 @@
       real*8 :: rgaussr(npunt)
       real*8 :: ekinfin,estep,etotmax,etotmin,pfin,ahgauss,arg,ekinini
       real*8 :: df,dg,f,g,paqini,pepe,pini,r,r2,xnorm,xr2,abstot,erot
+      real*8 :: rfin,wro
       integer :: ie,iele,iv,j,ir2,key
       complex*16 :: zexpo,zfft
 
@@ -400,6 +406,7 @@
              write(6,*)' Kin. Ener. range to evaluate S^2 (eV):'
      &             ,etotmin/conve1/8065.5d0,etotmax/conve1/8065.5d0
        endif
+
 
 *1              building initial gaussian
 *a)  estimated closest l:
@@ -432,6 +439,7 @@
       if(idproc.eq.0)open(43,file='gaussE',status='unknown')
       xnorm=0.d0
       pepe=dble(il0*(il0+1))
+      rfin=rcolini+1.d0
       do ie=1,netot
          etotS2(ie)=etotmin+dble(ie-1)*estep
          ekinini=etotS2(ie)
@@ -440,9 +448,10 @@
             zfft=dcmplx(0.d0,0.d0)
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
-               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa0)
+               erot=hbr*hbr*pepe*0.5d0/(rcolini*rcolini*xmasa0)
+!               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa0)
 
-               if(ekinini.ge.erot)then
+               if(ekinini.gt.erot)then
                  arg=r*pini
                  CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
                  zexpo=dcmplx(-g,f)
@@ -466,7 +475,7 @@
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-30)then
+            if(paqini.lt.1.d-15)then
                S2factor(ie,iv,j,iele)=0.d0
             else
                S2factor(ie,iv,j,iele)=
@@ -475,10 +484,11 @@
          enddo
          enddo
          enddo
+      
 
 ** total
          xnorm=xnorm+paqini
-         if(paqini.lt.1.d-20)then
+         if(paqini.lt.1.d-15)then
             reacfct(ie)=0.d0
          else
             reacfct(ie)=hbr*hbr*pini/paqini/xmasa0/xm1reac/4.d0/pi/pi

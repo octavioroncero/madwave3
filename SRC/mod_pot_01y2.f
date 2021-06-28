@@ -454,8 +454,12 @@
          write(6,*)'  Write potential files to plot'
          write(6,*)
          call flush(6)
-         
-         call write_pot
+
+         if(npun1.eq.1)then
+            call write_poteq
+         else
+            call write_pot
+         endif
       endif
      
       write(6,*)' ending pot2 in proc= ',idproc
@@ -537,6 +541,73 @@
       return
       end subroutine write_pot
 
+!--------------------------------------------------------------
+
+      subroutine write_poteq
+      use mod_gridYpara_01y2
+      implicit none
+      include "mpif.h"
+      double precision ::  vang(npun1,nangu),vangtot(npun1,nangu)
+      integer :: ifile,ie,je,jr2,ir1,ir2,iang,iang_proc,ir,nnn,ierr
+      double precision :: r1,r2
+
+      ifile=10
+      do ie=1,nelec
+      do je=ie,nelec
+         if(idproc.eq.0)then
+            write(name,"('potr2Cang.e',i1,'.'i1)")ie,je
+            open(ifile,file=name,status='unknown')
+         endif
+
+         do jr2=1,npun2
+            r2=rmis2+dble(jr2-1)*ah2
+!         if(r2.lt.absr2)then
+            do ir1=1,npun1
+            do iang=1,nangu
+               vang(ir1,iang)=0.d0
+               vangtot(ir1,iang)=0.d0
+            enddo
+            enddo
+         
+            do iang_proc=1,nanguproc
+               iang=indangreal(iang_proc,idproc)
+               do ir=1, npunreal(iang)
+                  ir1=indr1(ir,iang)
+                  ir2=indr2(ir,iang)
+                  if(ir2.eq.jr2)then
+                     vang(ir1,iang)=vvv(ir,iang_proc,ie,je)
+                  endif
+               enddo
+            enddo
+
+            nnn=npun1*nangu
+            call MPI_REDUCE(vang,vangtot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+
+            if(idproc.eq.0)then
+               ir1=1
+               do iang=1,nangu
+                  if(dabs(vangtot(ir1,iang)).lt.1.d-90)then
+                     vangtot(ir1,iang)=0.d0
+                  endif
+               enddo
+               do iang=1,nangu,nangplot
+                     write(ifile,'(500(1x,e15.7))')r2,cgamma(iang)
+     &                 ,vangtot(ir1,iang)
+               enddo
+
+               write(ifile,'()')
+
+            endif  ! idproc==0
+
+         enddo ! ir2
+
+         if(idproc==0)close(ifile)
+      enddo  ! jele
+      enddo  ! iele
+  
+      return
+      end subroutine write_poteq
 !--------------------------------------------------------------
       subroutine indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
       use mod_gridYpara_01y2

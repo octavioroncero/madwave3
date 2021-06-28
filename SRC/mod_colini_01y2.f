@@ -72,6 +72,11 @@
       write(6,*)'      energy width(eV)= ',deltaE_ev
       write(6,*)'  r20 =',rcolini,'   k= ',xk0,'   alpha= ',alpha0
       write(6,*)
+      if(npun1.eq.1.and.iprod.eq.1)then
+          write(6,*)' for rigid rotor (npun1=1) iprod must be 0'
+          call flush(6)
+          stop
+      endif
       xxx=0.d0
       do ir2=1,npun2
          r2=rmis2+dble(ir2-1)*ah2
@@ -189,7 +194,7 @@
       distri(:,:)=0.d0
       distritot(:,:)=0.d0
       
-! calculating initial wavepacket in prodocts Jacobi coordinates
+! calculating initial wavepacket in products Jacobi coordinates
           do ir2=1,npun2
             xx(ir2)=rmis2+dble(ir2-1)*ah2
             ff(ir2,1)=fdprod(ir2,nvref,jref,ielecref)*dsqrt(ah1/ah2)

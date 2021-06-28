@@ -71,13 +71,21 @@ c! the partition.
 ! reactants functions calculation
 
       call angular_functions
-      
-      call radial_functions01_write
 
-      if(iprod.eq.2)then
+      if(npun1.eq.1)then
 
-         call product_radialf_write
+         write(6,*)' --> calling rigid rotor energies <-- '
+         call flush(6)
+         call radial_functions01eq_write
 
+      else
+         call radial_functions01_write
+
+         if(iprod.eq.2)then
+ 
+            call product_radialf_write
+
+         endif
       endif
 
 !     determining potential

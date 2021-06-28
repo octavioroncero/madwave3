@@ -7,16 +7,16 @@ pot=../SRC
 
 ######################  compiling modules
 
-      mpif77 -c  $dir/mod_gridYpara_01y2.f
-      mpif77 -c  $dir/mod_pot_01y2.f
-      mpif77 -c  $dir/mod_baseYfunciones_01y2.f
-      mpif77 -c  $dir/mod_Hphi_01y2.f
-      mpif77 -c  $dir/mod_photoini_01y2.f
-      mpif77 -c  $dir/mod_colini_01y2.f
-      mpif77 -c  $dir/mod_absorcion_01y2.f
-      mpif77 -c  $dir/mod_flux_01y2.f
-      mpif77 -c  $dir/mod_coortrans01_02.f
-      mpif77 -c  $dir3/mod_lanczos_01y2.f
+      mpif77 -c -O3 $dir/mod_gridYpara_01y2.f
+      mpif77 -c -O3 $dir/mod_pot_01y2.f
+      mpif77 -c -O3 $dir/mod_baseYfunciones_01y2.f
+      mpif77 -c -O3 $dir/mod_Hphi_01y2.f
+      mpif77 -c -O3 $dir/mod_photoini_01y2.f
+      mpif77 -c -O3 $dir/mod_colini_01y2.f
+      mpif77 -c -O3 $dir/mod_absorcion_01y2.f
+      mpif77 -c -O3 $dir/mod_flux_01y2.f
+      mpif77 -c -O3 $dir/mod_coortrans01_02.f
+      mpif77 -c -O3 $dir3/mod_lanczos_01y2.f
 
 ######################  mad3.out
 rm mad3.out
