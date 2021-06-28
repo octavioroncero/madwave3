@@ -321,7 +321,7 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                arg=r*pini
-               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa)
+               erot=hbr*hbr*pepe*0.5d0/(r2col*r2col*xmasa)
                if(ekinini.gt.erot)then
                   CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
                   zexpo=dcmplx(-g,f)
@@ -343,7 +343,8 @@
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-30)then
+
+            if(paqini.lt.1.d-15)then
                S2prodfac(iv,j,iele)=0.d0
             else
                S2prodfac(iv,j,iele)=
@@ -407,7 +408,7 @@
                      jjjj0=max0(iabs(iom),j00)
 
                      do j=jjjj0,j1
-                        if(noBCstates(j,ielec).gt.0)then
+                        if(noBCstates(j,ielec).ge.0)then
                            zzz=zS2prod(iv,j,ielec,iom)/2.d0/pi
                         else
                            zzz=dcmplx(0.d0,0.d0)
