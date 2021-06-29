@@ -396,7 +396,8 @@ c! the partition.
 
       call MPI_REDUCE(xnorm1,xnorm1tot,1,MPI_REAL8,MPI_SUM
      &                             ,0,MPI_COMM_WORLD,ierr)
-      if(idproc.eq.0)then
+      call MPI_BCAST(xnorm1tot,1,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+!      if(idproc.eq.0)then
          write(6,*)it,xnorm1tot
       endif
 
