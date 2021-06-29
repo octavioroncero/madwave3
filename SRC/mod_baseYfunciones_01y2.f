@@ -605,11 +605,11 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
 !     substracting ref energy
 
       ediatref=0.d0
-      if(npun1.gt.1)then
+!      if(npun1.gt.1)then
          open(10,file='../func/eref',status='old')
          read(10,*)ediatref
          close(10)
-      endif                 
+!      endif                 
       write(6,*)' substracting ediatref to the diatomic energies'
  
       do ielec=1,nelec
