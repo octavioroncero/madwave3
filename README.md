@@ -66,14 +66,17 @@ EXAMPLES/H+DH-v0j0::
 
 $ ./colpot.sh 
 
+$ mkdir pot func dip
+
 $ ./pot.out
 
 will generate that information.
-colpot.sh is a shell  that compile the potential to generate pot.out,
-providing an example of adapting a external potential.
+colpot.sh is a shell  that compile the "external potential" to generate pot.out.
+In EXAMPLES/H+DH-v0j0 there is an example on how make the interface for adapting a external potential code.
 
-It uses the data in "input.dat" organized in different namelists
-which is also used by mad3.out code to calculate state-to-state reation
+pot.out and all auxiliary programs reads the data 
+included in  "input.dat" organized in different namelists
+which is also used by mad3.out boundgrid.out  codes to calculate state-to-state reation
 probabilities for each partial wave (total angular momenbtum J)
 
 
