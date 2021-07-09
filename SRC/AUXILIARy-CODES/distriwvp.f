@@ -50,6 +50,7 @@
       real*8,allocatable,dimension(:,:,:) :: S2prodfac,ediat,ediatprod
       real*8,allocatable,dimension(:) :: vibprod,rotprod,vibrot
       complex*16,allocatable,dimension(:,:,:,:) :: zS2prod
+      integer :: nloopreal,ifail
 
 **>> constants
 
@@ -236,14 +237,15 @@
 **> Reading Cvj coefficients
 
       kcheby=0
+      ifail=1
       if(iprod.eq.1)then
          do iloop=1,nloop0
             write(name,'("Cvj.",i4.4)')iloop
             write(6,*)name
-            open(16,file=name,status='old',form='unformatted')
+            open(16,file=name,status='old',form='unformatted',err=1)
             do ik=1,ntimes
                kcheby=kcheby+1
-               read(16)it,Cvj
+               read(16,err=2)it,Cvj
                do Iom=iom0,iom1
                do ielec=1,nelecmax
                do j=j00,j1
@@ -261,10 +263,10 @@
         do iloop=1,nloop0
             write(name,'("Cvjprod.",i4.4)')iloop
             write(6,*)name
-            open(16,file=name,status='old',form='unformatted')
+            open(16,file=name,status='old',form='unformatted',err=1)
             do ik=1,ntimes
                kcheby=kcheby+1
-               read(16)it,Cvjprod
+               read(16,err=3)it,Cvjprod
                do Iom=iom0,iom1
                do ielec=1,nelecprod
                do j=j00,j1
@@ -279,6 +281,13 @@
             close(16)
          enddo
       endif
+      ifail=0
+      nloopreal=nloop0
+ 1    continue
+      if(ifail.eq.1)then
+         nloopreal=iloop-1
+      endif
+      write(6,*)'Reading coefficients up to nloop = ',loopreal
 
 **> Initial wavepacket
 
@@ -299,16 +308,18 @@
             write(6,*)'  r20 =',r2col,'   k= ',xk0,'   alpha= ',alpha0
             write(6,*)
             write(6,*)' redmass= ',xmasa
-         do ir2=1,npunt
-            r2=rmis2+dble(ir2-1)*ahgauss
-             call  rgauscolini(xr2,r2,r2col,alpha0,xk0,factor,il)
-            zgaussr(ir2)=dcmplx(xr2/dsqrt(2.d0),0.d0)
-            write(27,*)r2,dreal(zgaussr(ir2)*dconjg(zgaussr(ir2)))
-         enddo
          DET=DBLE(Jtot*(Jtot+1)+jref*(jref+1)-2*iomref*iomref)
          IL=0.5D0*(-1.D0+DSQRT(1.D0+4.d0*DET))+0.5D0
          pepe=dble(il*(il+1))
          key=-1
+         
+         do ir2=1,npunt
+            r2=rmis2+dble(ir2-1)*ahgauss
+             call  rgauscolini(xr2,r2,r2col,alpha0,xk0,factor,il)
+            zgaussr(ir2)=dcmplx(xr2/dsqrt(2.d0),0.d0)
+            erot=hbr*hbr*pepe*0.5d0/(r2*r2*xmasa)
+            write(27,*)r2,dreal(zgaussr(ir2)*dconjg(zgaussr(ir2))),erot
+         enddo
 
 **>> Main Loop in energy
 
@@ -324,19 +335,19 @@
           write(name,"('distriS2prod.v',i2.2,'.e',i1.1)")
      &                 ivprod,ielec
           open(iiiv,file=name,status='unknown')
-          do iomprod=iom0,iom1
-             iii=iii+1
-             write(name,"('distriS2prod.v',i2.2,'.Omg',i2.2,'.e',i1.1)")
-     &                 ivprod,iomprod,ielec
-             open(iii,file=name,status='unknown')
-         enddo
+!          do iomprod=iom0,iom1
+!             iii=iii+1
+!             write(name,"('distriS2prod.v',i2.2,'.Omg',i2.2,'.e',i1.1)")
+!     &                 ivprod,iomprod,ielec
+!             open(iii,file=name,status='unknown')
+!         enddo
       enddo
       enddo
       emin=emindistri*8065.5d0*conve1
       emax=emaxdistri*8065.5d0*conve1
       delta=(emax-emin)/dble(nener-1)
-      rfin=rcolini+1.d0
-      erot=hbr*hbr*pepe*0.5d0/(rfin*rfin*xmasa)
+      r=rcolini+1.d0
+      erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa)
       do ie=1,nener
          e=emin+dble(ie-1)*delta
          ekinini=e!-ediatref
@@ -350,8 +361,10 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                arg=r*pini
-               if(ekinini.gt.erot)then
-                  CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+               
+               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+                  
+               if(dabs(f).gt.1.d-20)then
                   zexpo=dcmplx(-g,f)
                   zfft=zfft+zgaussr(ir2)*zexpo
                endif
@@ -359,7 +372,7 @@
             zfft=zfft*ahgauss/2.d0/pi
             paqini=dreal(zfft*dconjg(zfft))
          endif
-          write(6,'(10(1x,e15.7))')e/(conve1*8065.5),paqini,pini
+         write(6,'(10(1x,e15.7))')e/(conve1*8065.5),paqini,pini
 **> products properties
          do iele=1,nelec
          do iv=nv0,nv1
@@ -399,7 +412,7 @@ c            endif
 **> sum in Chevishev iterations
 
          zfactor=dcmplx(2.d0*hbr/delta2,0.d0)
-         do ikcheb=1,ntimes*nloop0
+         do ikcheb=1,ntimes*nloopreal
             Es=(E-emindlt)/delta2
             expo=-dble(ikcheb)*dacos(Es)
             zexpo=cdexp(dcmplx(0.d0,expo))
@@ -455,8 +468,8 @@ c            endif
                         vibrot(j)=vibrot(j)+rotprod(j)      
                      enddo
                   endif
-                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
-     &                  ,(rotprod(j)*photonorm,j=j00,j1) 
+!                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
+!     &                  ,(rotprod(j)*photonorm,j=j00,j1) 
                enddo  ! iom
                write(iiiv,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
      &                  ,(vibrot(j)*photonorm,j=j00,j1) 
@@ -481,6 +494,16 @@ c            endif
      &          ,vibrot
      &          , stat=ierror)
       stop
+
+ 2    continue
+      write(6,*)' Cvj for iloop=',iloop,' not complete,ik= ',ik
+      call flush(6)
+      stop
+ 3    continue
+      write(6,*)' Cvjprod for iloop=',iloop,' not complete,ik= ',ik
+      call flush(6)
+      stop
+      
       end
 
 

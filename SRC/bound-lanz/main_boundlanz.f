@@ -619,7 +619,10 @@ c! the partition.
       dimension fun(nangu), funtot(nangu)
 
       dimension projr(npun1,ncanmax)
-      dimension funr(npun1), funrtot(npun1)     
+      dimension funr(npun1), funrtot(npun1)
+      dimension funr1r2bond(npun1)
+      dimension funr1r2bond_tot(npun1)
+      dimension dis_opt(npun1),iang_opt(npun1),ir2_opt(npun1)
 *        
 *   plots bound state averaging over r_small
 *
@@ -704,5 +707,93 @@ c! the partition.
 
       if(idproc.eq.0) close(10)
 
+*        
+*   plots bound state averaging over gamma
+*
+      if(idproc.eq.0)then   
+         write(name,'("bndbondx1x2.i",i3.3)')iv
+         open(10,file=name,status='unknown')
+      endif
+
+      xbondang=dcos(135.5d0*pi/180.d0)
+
+      do jr1=1,npun1
+         x1=rmis1+dble(jr1-1)*ah1
+         ir1=jr1
+         r1=x1
+
+         dis_opt(:)=1.d10
+         iang_opt(:)=0
+         ir2_opt(:)=0
+         do jr2=1,npun1
+            x2=rmis1+dble(jr2-1)*ah1
+
+            xm01=xm0+xm1
+            gam=xm1/xm01
+
+            Rg=x2*x2+x1*x1*gam*gam-2.d0*xbondang*gam*x1*x2
+            Rg=dsqrt(Rg)
+            ir2_opt(jr2)=(Rg-rmis2)/ah2
+            if(ir2_opt(jr2).lt.1)then
+                ir2_opt(jr2)=1
+            elseif(ir2_opt(jr2).gt.npun2)then
+               ir2_opt(jr2)=npun2
+            endif
+            costet=(x2*xbondang-gam*x1)/Rg
+            if(dabs(costet).gt.1.d0)costet=costet/dabs(costet)
+            dis=1.d10
+            do iang=1,nangu
+               xxx=dabs(cgamma(iang)-costet)
+               xxx=xxx*xxx
+               if(dabs(xxx).lt.dis)then
+                  dis=xxx
+                  iang_opt(jr2)=iang
+               endif     
+            enddo
+           
+!            r2=rmis2+dble(ir2_opt(jr2)-1)*ah2
+!            r2bond=(xm1*xm1/((xm0+xm1)*(xm0+xm1)))*r1*r1+r2*r2
+!     &           +2.d0*(xm1/(xm0+xm1))*r1*r2*cgamma(iang_opt(jr2))
+!            r2bond=dsqrt(r2bond)
+!            ccc=(xm1/(xm0+xm1))*x1+R2*cgamma(iang_opt(jr2))
+!            ccc=ccc/r2bond        
+!            write(69,*)x1,x2,xbondang
+!     &            ,r2bond,ccc
+!     &           ,rmis2+dble(ir2_opt(jr2)-1)*ah2
+!     &           ,cgamma(iang_opt(jr2))
+!     &         ,dis_opt(jr2),iang_opt(jr2),ir2_opt(jr2)
+         enddo                  ! jr2
+
+         funr1r2bond(:)=0.d0
+         funr1r2bond_tot(:)=0.d0
+         do i=1,ntotproc(idproc)
+            call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
+            iang=indangreal(iangp,idproc)
+            if(jr1.eq.ir1)then
+            do jr2=1,npun1
+            if(ir2.eq.ir2_opt(jr2).and.iang.eq.iang_opt(jr2))then
+               funr1r2bond(jr2)=rpaqproc(i)
+            endif
+            enddo
+            endif
+         enddo
+         
+         nnn=npun1
+         call MPI_REDUCE(funr1r2bond,funr1r2bond_tot,nnn
+     &                     ,MPI_REAL8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+ 
+         if(idproc.eq.0)then
+         do ir2=1,npun1
+            x2=rmis1+dble(ir2-1)*ah1
+            write(10,'(100(1x,e15.7))')x1,x2,funr1r2bond_tot(ir2)
+         enddo
+         write(10,'()')
+         endif
+          
+      enddo ! jr1
+
+     
+      if(idproc.eq.0) close(10)
+      
       return
       end subroutine plot_bnd

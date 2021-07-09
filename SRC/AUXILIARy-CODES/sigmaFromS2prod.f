@@ -408,6 +408,10 @@
                   if(Eshifted.ge.x(1).and.Eshifted.le.x(ne))then
                      call splinqq(f,x,iold,ne,Eshifted,netot,spl)
                      PJ0(iEsigma)=spl
+                  elseif(Eshifted.lt.x(1))then
+                     PJ0(iEsigma)=0.d0
+                  elseif(Eshifted.gt.x(ne))then
+                     PJ0(iEsigma)=f(ne,1)
                   endif
                enddo
            ! PJ1
@@ -428,6 +432,10 @@
                   if(Eshifted.ge.x(1).and.Eshifted.le.x(ne))then
                      call splinqq(f,x,iold,ne,Eshifted,netot,spl)
                      PJ1(iEsigma)=spl
+                  elseif(Eshifted.lt.x(1))then
+                     PJ1(iEsigma)=0.d0
+                  elseif(Eshifted.gt.x(ne))then
+                     PJ1(iEsigma)=f(ne,1)
                   endif
                enddo
             ! average
@@ -458,6 +466,10 @@
                   if(Eshifted.ge.x(1).and.Eshifted.le.x(ne))then
                      call splinqq(f,x,iold,ne,Eshifted,netot,spl)
                      PJ(iEsigma,Jtot,iom)=spl
+                  elseif(Eshifted.lt.x(1))then
+                     PJ(iEsigma,Jtot,iom)=0.d0
+                  elseif(Eshifted.gt.x(ne))then
+                     PJ(iEsigma,Jtot,iom)=f(ne,1)
                   endif
                enddo
             

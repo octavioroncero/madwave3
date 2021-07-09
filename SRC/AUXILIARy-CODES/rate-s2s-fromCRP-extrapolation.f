@@ -256,7 +256,7 @@
             enddo
             ratetot(itemp)=ratetot(iTemp)+ratevib
             
-            write(10,'(50(1x,e15.7))')temp
+            write(10,'(1000(1x,e15.7))')temp
      &            ,(rate(j)*fac,j=jinirate,jmaxrate)
 
             write(9,*)temp,ratevib*fac

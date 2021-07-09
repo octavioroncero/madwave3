@@ -38,7 +38,7 @@
 *********************************************************
 * preparing dimensions depending on Jacobi coordinates used in propagation (iprod=1 -products- or iprod=2 reactants) 
 
-      real*8,allocatable,dimension(:,:,:,:,:) :: CIP
+      real*8,allocatable,dimension(:,:,:,:,:,:) :: CIP
       real*8,allocatable,dimension(:,:,:) :: S2J
       real*8,allocatable,dimension(:,:) :: ES2,SJ1,SJ2,PJ
       real*8,allocatable,dimension(:) :: S2mat,CIPomg
@@ -137,7 +137,7 @@
      &        ,S2mat(j00:j11)
      &        ,CIPv(nv0:nv1,nelecmax)
      &        ,CIPomg(-jref:jref)
-     &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,-jref:jref)
+     &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,iom0:iom1,-jref:jref)
      &     ,f(nener,2),xx(nener)
      &     ,Jcalc(ncalc),pm(0:ndim),BeJ(0:Jtotmax)
      &     ,stat=ierror)
@@ -167,9 +167,10 @@
 
       write(6,*)'enermineV,estep=',enermineV,estep
 
-      CIP(:,:,:,:,:)=0.d0
+      CIP(:,:,:,:,:,:)=0.d0
       PJ(:,:)=0.d0
       do iomref0=-jref,jref
+      do iom=iom0,iom1
       do ielec=1,nelecmax
       do iv=nv0,nv1
 
@@ -186,42 +187,58 @@
             sign=(-1.d0)**Jtot0
             iommin0=0
             if(par*sign.lt.0.d0)iommin0=1
-            if(Jtot0.ge.iabs(iomref0))then
+            if(iom.eq.0.or.iomref.eq.0)iommin0=0
+            if(Jtot0.ge.iabs(iomref0).and.Jtot0.ge.iom
+     &        .and.iom.ge.iommin0)then
 
                if(iomref0.eq.0)then
                   write(name,'("../Omg",i1,"/J",i3.3 
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                           iabs(iomref0),Jtot0,iv,ielec
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                           iabs(iomref0),Jtot0,iv,iom,ielec
+               elseif(iom.eq.0)then
+
+                  if(mod(Jtot0,2).eq.0)then
+                     write(name,'("../Omg",i1,"/p/J",i3.3
+     &                 ,"/distriS2reac.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+                  else
+                     write(name,'("../Omg",i1,"/m/J",i3.3
+     &                 ,"/distriS2reac.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+                  endif
+
                elseif(iomref0.lt.0)then
                   if(mod(Jtot0,2).eq.0)then
                      write(name,'("../Omg",i1,"/m/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
                   else
                      write(name,'("../Omg",i1,"/p/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
 
                   endif
                elseif(iomref0.gt.0)then
                   if(mod(Jtot0,2).eq.0)then
                      write(name,'("../Omg",i1,"/p/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
                   else
                      write(name,'("../Omg",i1,"/m/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
 
                   endif
                endif
 
-               write(6,*)iomref0,Jtot0,iv,ielec,name
+               write(6,*)iomref0,Jtot0,iom,iv,ielec,name
                call flush(6)
                open(5,file=name,status='old',err=1)
 
@@ -288,6 +305,7 @@
                endif
                sign=(-1.d0)**Jtot0
                ifail=0
+               if(iom.eq.0.and.sign*par.lt.0.d0)ifail=1
                if(ifail.eq.0)then
 
                   S2mat(j)=0.d0
@@ -399,8 +417,8 @@
                      endif          
                      if(S2mat(j).lt.0.d0)S2mat(j)=0.d0
 
-                     CIP(iedif,j,iv,ielec,iomref0)=
-     &                      CIP(iedif,j,iv,ielec,iomref0)
+                     CIP(iedif,j,iv,ielec,iom,iomref0)=
+     &                      CIP(iedif,j,iv,ielec,iom,iomref0)
      &                       +S2mat(j)*dble(2*Jtot0+1)
 
                      PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
@@ -414,6 +432,7 @@
 
       enddo  ! iv
       enddo  ! ielec
+      enddo  ! iom
       enddo  ! iomref0
 
 
@@ -463,12 +482,14 @@
                do j=j00,j11
                   S2mat(j)=0.d0
                   do iomref0=-jref,jref
-                     S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iomref0)
+                  do iom=iom0,iom1
+                     S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iom,iomref0)
                      CIPv(iv,ielec)=CIPv(iv,ielec)
-     &                             +CIP(iedif,j,iv,ielec,iomref0)
+     &                             +CIP(iedif,j,iv,ielec,iom,iomref0)
                      CIPomg(iomref0)=CIPomg(iomref0)
-     &                       +CIP(iedif,j,iv,ielec,iomref0)
-                     CIPtot=CIPtot+CIP(iedif,j,iv,ielec,iomref0)
+     &                       +CIP(iedif,j,iv,ielec,iom,iomref0)
+                     CIPtot=CIPtot+CIP(iedif,j,iv,ielec,iom,iomref0)
+                  enddo
                   enddo
                   if(S2mat(j).lt.1.d-30)S2mat(j)=0.d0
                enddo  ! j

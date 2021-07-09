@@ -51,6 +51,7 @@
       real*8,allocatable,dimension(:) :: vibprod,rotprod,vibrot
       integer,allocatable,dimension(:,:) :: noBCstates
       complex*16,allocatable,dimension(:,:,:,:) :: zS2prod
+      integer :: noloopreal,ifail
 
 **>> constants
 
@@ -186,36 +187,19 @@
 
       kcheby=0
       prodCvj(:,:,:,:,:)=0.d0
+      ifail=1
       if(iprod.eq.1)then
-         do iloop=1,nloop0
-            write(name,'("Cvj.",i4.4)')iloop
-            write(6,*)name
-            open(16,file=name,status='old',form='unformatted')
-            do ik=1,ntimes
-               kcheby=kcheby+1
-               read(16)it,Cvj
-               do Iom=iom0,iom1
-               do ielec=1,nelecmax
-               do j=j00,j1
-                     
-               do iv=nv0,noBCstates(j,ielec)
-                  prodCvj(kcheby,iv,j,ielec,iom)=Cvj(iv,j,iom,ielec)
-               enddo
-               enddo
-               enddo
-               enddo
-            enddo
-           
-            close(16)
-         enddo  ! end iloop
+         write(6,*)'  for iprod=1 no inelastic probabilities '
+         call flush(6)
+         stop
       else
         do iloop=1,nloop0
             write(name,'("Cvj.",i4.4)')iloop
             write(6,*)name
-            open(16,file=name,status='old',form='unformatted')
+            open(16,file=name,status='old',form='unformatted',err=1)
             do ik=1,ntimes
                kcheby=kcheby+1
-               read(16)it,Cvjprod
+               read(16,err=2)it,Cvjprod
                do Iom=iom0,iom1
                do ielec=1,nelecmax
                do j=j00,j1      
@@ -236,6 +220,13 @@
          enddo
       endif
 
+      ifail=0
+      loopreal=nloop0
+ 1    continue
+      if(ifail.eq.1)then
+         loopreal=iloop-1
+      endif
+      write(6,*)'Reading coefficients up to nloop = ',loopreal
 **> Initial wavepacket
 
          photonorm=1.d0
@@ -290,24 +281,26 @@
          enddo
       enddo
       
-      iii=ifile
-      do ielec=1,nelec
-         do ivprod=nv0,nv1
-            do iomprod=iom0,iom1
-               iii=iii+1
-             write(6,*)' iom unit,file= ',iii,name
-             write(name,"('distriS2reac.v',i2.2,'.Omg',i2.2,'.e',i1.1)")
-     &                 ivprod,iomprod,ielec
-             open(iii,file=name,status='unknown')
-         enddo
-      enddo
-      enddo
+!      iii=ifile
+!      do ielec=1,nelec
+!         do ivprod=nv0,nv1
+!            do iomprod=iom0,iom1
+!               iii=iii+1
+!             write(6,*)' iom unit,file= ',iii,name
+!             write(name,"('distriS2reac.v',i2.2,'.Omg',i2.2,'.e',i1.1)")
+!     &                 ivprod,iomprod,ielec
+!             open(iii,file=name,status='unknown')
+!         enddo
+!      enddo
+!      enddo
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 **>> Main Loop in energy
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
       emin=emindistri*8065.5d0*conve1
       emax=emaxdistri*8065.5d0*conve1
       delta=(emax-emin)/dble(nener-1)
+      r=r2col+1.d0
+      erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa)
       do ie=1,nener
          e=emin+dble(ie-1)*delta
          ekinini=e!-ediatref
@@ -321,9 +314,10 @@
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
                arg=r*pini
-               erot=hbr*hbr*pepe*0.5d0/(r2col*r2col*xmasa)
-               if(ekinini.gt.erot)then
-                  CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+               
+               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+               
+               if(dabs(f).gt.1.d-20)then
                   zexpo=dcmplx(-g,f)
                   zfft=zfft+zgaussr(ir2)*zexpo
                endif
@@ -422,8 +416,8 @@
                         vibrot(j)=vibrot(j)+rotprod(j)      
                      enddo
                   endif
-                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
-     &                  ,(rotprod(j)*photonorm,j=j00,j1) 
+!                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
+!     &                  ,(rotprod(j)*photonorm,j=j00,j1) 
                enddo  ! iom
                write(iiiv,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
      &                  ,(vibrot(j)*photonorm,j=j00,j1) 
@@ -449,6 +443,11 @@
      &          ,rotprod
      &          ,vibrot
      &          , stat=ierror)
+      stop
+
+ 2    continue
+      write(6,*)' Cvj for iloop=',iloop,' not complete,ik= ',ik
+      call flush(6)
       stop
       end
 

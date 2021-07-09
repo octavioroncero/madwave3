@@ -439,7 +439,8 @@
       if(idproc.eq.0)open(43,file='gaussE',status='unknown')
       xnorm=0.d0
       pepe=dble(il0*(il0+1))
-      rfin=rcolini+1.d0
+      r=rcolini+1.d0
+      erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa0)
       do ie=1,netot
          etotS2(ie)=etotmin+dble(ie-1)*estep
          ekinini=etotS2(ie)
@@ -448,14 +449,12 @@
             zfft=dcmplx(0.d0,0.d0)
             do ir2=1,npunt
                r=rmis2+dble(ir2-1)*ahgauss
-               erot=hbr*hbr*pepe*0.5d0/(rcolini*rcolini*xmasa0)
-!               erot=hbr*hbr*pepe*0.5d0/(r*r*xmasa0)
 
-               if(ekinini.gt.erot)then
-                 arg=r*pini
-                 CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
-                 zexpo=dcmplx(-g,f)
-                 zfft=zfft+dcmplx(rgaussr(ir2),0.d0)*zexpo
+               arg=r*pini
+               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+               if(dabs(f).gt.1.d-20)then
+                  zexpo=dcmplx(-g,f)
+                  zfft=zfft+dcmplx(rgaussr(ir2),0.d0)*zexpo
                endif
             enddo
             zfft=zfft*ahgauss/2.d0/pi

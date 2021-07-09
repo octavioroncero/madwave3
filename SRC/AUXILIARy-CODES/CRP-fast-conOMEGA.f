@@ -1,16 +1,15 @@
-      program CIPprogram
+      program CRPprogram
 !!      use ieee_arithmetic
       implicit real*8(a-h,o-z)
 
       character*50 name,viejo,posicion,system,frpini,fRgini,fcoefini
 *
-* calculates the Cumulative Inelastic Probabilities (CIP) to calculate rates
+* calculates the Cumulative Reaction Probabilities (CRP) to calculate rates
 *     input in eV of translational energy: has to be changed..
 *     output energies are in eV traslational energy
 *
-*  second column in output CIPxxx files is: k^2 in Angstroms^2
-*     sigma= CIP* pi/(k^2 (2j_ref+1) )
-*
+*  second column in output CRPxxx files is: k^2 in Angstroms^2
+*     sigma= CRP* pi/(k^2 (2j_ref+1) )
 *
 
       parameter(S2max=1.d0) ! maximum value of Smat^2 allowed to avoid num. errors at low energies
@@ -38,14 +37,14 @@
 *********************************************************
 * preparing dimensions depending on Jacobi coordinates used in propagation (iprod=1 -products- or iprod=2 reactants) 
 
-      real*8,allocatable,dimension(:,:,:,:,:) :: CIP
-      real*8,allocatable,dimension(:,:,:) :: S2J
+      real*8,allocatable,dimension(:,:,:,:,:,:) :: CRP
+      real*8,allocatable,dimension(:,:,:,:) :: S2J
       real*8,allocatable,dimension(:,:) :: ES2,SJ1,SJ2,PJ
-      real*8,allocatable,dimension(:) :: S2mat,CIPomg
-      real*8,allocatable,dimension(:,:) :: CIPv
+      real*8,allocatable,dimension(:) :: S2mat,CRPv,CRPomg
       real*8,allocatable :: xx(:),f(:,:)
       integer,allocatable :: Jcalc(:)
       real*8, allocatable :: pm(:),BeJ(:)
+      integer :: ifail,iom1real
       
 **>> constants
 
@@ -103,19 +102,28 @@
 
       xmtot=xm0+xm1+xm2
       if(iprod.eq.1)then              ! products Jacobi coordinates
-         write(6,*)'  For inelastic calculations iprod must be = 2'
-         write(6,*)'      to use reactant Jacobi coordinates '
-         call flush(6)
-         stop
-
-      else  !!! if(iprod.eq.2)then          ! reactants Jacobi coordinates
          iom0=iommin
          iom1=iommax
          j00=jini
          j11=jmax
          nv0=nvini
          nv1=nvmax
+         nel=nelecmax
+         xmasa=(xm1*(xm0+xm2))/xmtot
+         xmasaprod=(xm2*(xm0+xm1))/xmtot
+         write(6,'("--> Using product Jacobi coordinates",/
+     &         ,10x,"with BC mases= ",2(F12.8,1x))')xm0,xm2
+
+      elseif(iprod.eq.2)then          ! reactants Jacobi coordinates
+         iom0=iomminprod
+         iom1=iommaxprod
+         j00=jiniprod
+         j11=jmaxprod
+         nv0=nviniprod
+         nv1=nvmaxprod
+         nel=1
          xmasa=(xm2*(xm0+xm1))/xmtot
+         xmasaprod=(xm1*(xm0+xm2))/xmtot
          write(6,'("--> Using reactant Jacobi coordinates",/
      &         ,10x,"with BC mases= ",2(F12.8,1x))')xm0,xm1
       endif
@@ -129,15 +137,15 @@
 
 **> allocating matrices
 
-      allocate(S2J(nener,ncalc,j00:j11)
+      allocate(S2J(nener,ncalc,j00:j11,0:Jtotmax)
      &        ,ES2(nener,ncalc)
      &        ,SJ1(nenerdif,j00:j11)
      &        ,SJ2(nenerdif,j00:j11)
      &        ,PJ(nenerdif,0:Jtotmax)
      &        ,S2mat(j00:j11)
-     &        ,CIPv(nv0:nv1,nelecmax)
-     &        ,CIPomg(-jref:jref)
-     &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,-jref:jref)
+     &        ,CRPv(nv0:nv1)
+     &        ,CRPomg(-jref:jref)
+     &  ,CRP(nenerdif,j00:j11,nv0:nv1,nelecmax,iom0:iom1,-jref:jref)
      &     ,f(nener,2),xx(nener)
      &     ,Jcalc(ncalc),pm(0:ndim),BeJ(0:Jtotmax)
      &     ,stat=ierror)
@@ -167,16 +175,18 @@
 
       write(6,*)'enermineV,estep=',enermineV,estep
 
-      CIP(:,:,:,:,:)=0.d0
-      PJ(:,:)=0.d0
+      CRP(:,:,:,:,:,:)=0.d0
       do iomref0=-jref,jref
-      do ielec=1,nelecmax
+      do ielec=1,nel
       do iv=nv0,nv1
 
 **Reading reaction probabilities for calculated  J's
       
          do iJ=1,nJcalc
             Jtot0=Jcalc(iJ)
+            iom1real=Jtot0
+            ifail=1
+         do iom=iom0,iom1real
             if(iabs(iomref0).gt.0)then
               par=+1.d0
               if(iomref0.lt.0)par=-1.d0
@@ -186,68 +196,81 @@
             sign=(-1.d0)**Jtot0
             iommin0=0
             if(par*sign.lt.0.d0)iommin0=1
-            if(Jtot0.ge.iabs(iomref0))then
+            if(iom.eq.0.or.iomref.eq.0)iommin0=0
+            if(Jtot0.ge.iabs(iomref0).and.Jtot0.ge.iom
+     &        .and.iom.ge.iommin0)then
 
                if(iomref0.eq.0)then
                   write(name,'("../Omg",i1,"/J",i3.3 
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                           iabs(iomref0),Jtot0,iv,ielec
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                           iabs(iomref0),Jtot0,iv,iom,ielec
+               elseif(iom.eq.0)then
+
+                  if(mod(Jtot0,2).eq.0)then
+                     write(name,'("../Omg",i1,"/p/J",i3.3
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+                  else
+                     write(name,'("../Omg",i1,"/m/J",i3.3
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+                  endif
+
                elseif(iomref0.lt.0)then
                   if(mod(Jtot0,2).eq.0)then
                      write(name,'("../Omg",i1,"/m/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
                   else
                      write(name,'("../Omg",i1,"/p/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
 
                   endif
                elseif(iomref0.gt.0)then
                   if(mod(Jtot0,2).eq.0)then
                      write(name,'("../Omg",i1,"/p/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
                   else
                      write(name,'("../Omg",i1,"/m/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,ielec
+     &                 ,"/distriS2prod.v",i2.2
+     &                 ,".Omg",i2.2,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,iom,ielec
 
                   endif
                endif
+               ifail=0
+ 1             CONTINUE
+               if(ifail.eq.0)then
+                  write(6,*)iomref0,Jtot0,iom,name
+                  open(5,file=name,status='old')
 
-               write(6,*)iomref0,Jtot0,iv,ielec,name
-               call flush(6)
-               open(5,file=name,status='old',err=1)
-
-               if(iomref0.eq.0)then
-                  write(name,'("../Omg",i1,"/J",i3.3
-     &                 ,"/distriS2reac.elec",i2.2)')iomref0,Jtot0,ielec
-               elseif(iomref0.lt.0)then
-                  write(name,'("../Omg",i1,"/m/J",i3.3
-     &                 ,"/distriS2reac.elec",i2.2)')
-     &                    iabs(iomref0),Jtot0,ielec
-               elseif(iomref0.gt.0)then
-                  write(name,'("../Omg",i1,"/p/J",i3.3
-     &                 ,"/distriS2reac.elec",i2.2)')iomref0,Jtot0,ielec
-               endif
-               open(4,file=name,status='old')
+                  if(iomref0.eq.0)then
+                     write(name,'("../Omg",i1,"/J",i3.3
+     &                 ,"/distriS2prod.elec")')iomref0,Jtot0
+                  elseif(iomref0.lt.0)then
+                     write(name,'("../Omg",i1,"/m/J",i3.3
+     &                 ,"/distriS2prod.elec")')
+     &                    iabs(iomref0),Jtot0
+                  elseif(iomref0.gt.0)then
+                     write(name,'("../Omg",i1,"/p/J",i3.3
+     &                 ,"/distriS2prod.elec")')iomref0,Jtot0
+                  endif
+                  open(4,file=name,status='old')
 
 
+               S2J(:,:,:,:)=0.d0 !  S2J(ie,iJ,j,iom)=0.d0
 
-               do j=j00,j11
-               do ie=1,nener
-                  S2J(ie,iJ,j)=0.d0
-               enddo
-               enddo
 
                do ie=1,nener
-                  read(5,*)es2(ie,iJ),(S2J(ie,iJ,j),j=j00,j11)
+                  read(5,*)es2(ie,iJ),(S2J(ie,iJ,j,iom),j=j00,j11)
                   do j=j00,j11
 !                     if(ieee_is_nan(S2J(ie,iJ,j)))S2J(ie,iJ,j)=0.d0
                   enddo
@@ -258,7 +281,7 @@
                   if(S2tot.gt.S2max)then
                      fac=S2max/S2tot
                      do j=j00,j11
-                        S2J(ie,iJ,j)=S2J(ie,iJ,j)*fac
+                        S2J(ie,iJ,j,iom)=S2J(ie,iJ,j,iom)*fac
                      enddo
                   endif
 !!end-correction
@@ -267,8 +290,9 @@
 
                close(5)
                close(4)
-  1            continue
-            endif  ! Jtot0>iomref0
+               endif            !ifail=0:  present file for iom
+            endif               ! Jtot0>iomref0
+            enddo ! iom
          enddo  ! Jtot0
 
 ********Loop in energy  
@@ -280,6 +304,7 @@
             minJtot=max0(iabs(iomref0),iom)
            
             do Jtot0=minJtot,Jtotmax
+            do iom=iom0,Jtot0
                if(iabs(iomref0).gt.0)then
                  par=+1.d0
                  if(iomref0.lt.0)par=-1.d0
@@ -288,6 +313,7 @@
                endif
                sign=(-1.d0)**Jtot0
                ifail=0
+               if(iom.eq.0.and.sign*par.lt.0.d0)ifail=1
                if(ifail.eq.0)then
 
                   S2mat(j)=0.d0
@@ -302,7 +328,7 @@
 *Interpolation according to J1
                      do ie=1,nener
                         xx(ie)=es2(ie,iJ) 
-                        f(ie,1)=S2J(ie,iJ,j)
+                        f(ie,1)=S2J(ie,iJ,j,iom)
                         f(ie,2)=0.d0
                      enddo
         
@@ -314,7 +340,7 @@
                        eshift=enerdifeV-shift
                        SJ1(iedif,j)=0.d0
                        if(eshift.gt.es2(nener,iJ))then
-                         SJ1(iedif,j)=S2J(nener,iJ,j)
+                         SJ1(iedif,j)=S2J(nener,iJ,j,iom)
                        elseif(eshift.lt.es2(1,iJ))then
                          SJ1(iedif,j)=0.d0
                        else
@@ -325,7 +351,7 @@
 *Interpolation according to J2
                      do ie=1,nener
                         xx(ie)=es2(ie,iJ+1)
-                        f(ie,1)=S2J(ie,iJ+1,j)
+                        f(ie,1)=S2J(ie,iJ+1,j,iom)
                         f(ie,2)=0.d0
                      enddo
          
@@ -338,7 +364,7 @@
                        eshift=enerdifeV+shift 
                        SJ2(iedif,j)=0.d0
                        if(eshift.gt.es2(nener,iJ+1))then
-                          SJ2(iedif,j)=S2J(nener,iJ+1,j)
+                          SJ2(iedif,j)=S2J(nener,iJ+1,j,iom)
                        elseif(eshift.lt.es2(1,iJ+1))then
                           SJ2(iedif,j)=0.d0
                        else
@@ -356,7 +382,7 @@
                      J1=Jcalc(nJcalc)
                      do ie=1,nener
                         xx(ie)=es2(ie,nJcalc) 
-                        f(ie,1)=S2J(ie,nJcalc,j)
+                        f(ie,1)=S2J(ie,nJcalc,j,iom)
                         f(ie,2)=0.d0
                      enddo
         
@@ -369,7 +395,7 @@
                        eshift=enerdifeV-shift
                        SJ1(iedif,j)=0.d0
                        if(eshift.gt.es2(nener,nJcalc))then
-                          SJ1(iedif,j)=S2J(nener,nJcalc,j)
+                          SJ1(iedif,j)=S2J(nener,nJcalc,j,iom)
                        elseif(eshift.lt.es2(1,nJcalc))then
                           SJ1(iedif,j)=0.d0
                        else
@@ -387,7 +413,7 @@
                         S2mat(j)= SJ1(iedif,j)  
                      elseif(Jtot0.eq.J2)then
                         S2mat(j)= SJ2(iedif,j)
-                     elseif(Jtot0.gt.Jcalc(nJcalc))then
+                     elseif(Jtot0.ge.Jcalc(nJcalc))then
                         S2mat(j)= SJ1(iedif,j)
                      elseif(J1.ge.iom)then
                         S2mat(j) = dble(J2-Jtot0)*SJ1(iedif,j)
@@ -399,8 +425,8 @@
                      endif          
                      if(S2mat(j).lt.0.d0)S2mat(j)=0.d0
 
-                     CIP(iedif,j,iv,ielec,iomref0)=
-     &                      CIP(iedif,j,iv,ielec,iomref0)
+                     CRP(iedif,j,iv,ielec,iom,iomref0)=
+     &                      CRP(iedif,j,iv,ielec,iom,iomref0)
      &                       +S2mat(j)*dble(2*Jtot0+1)
 
                      PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
@@ -408,6 +434,7 @@
                   enddo ! iedif
     
                endif  ! ifail=0
+            enddo  ! iom
             enddo  ! Jtot0
             
          enddo ! j
@@ -419,88 +446,75 @@
 
 * writting files
 
-      ifile0=100
-      ifilevib0=11
-
-      ifilevib=ifilevib0
-      do ielec=1,nelecmax
-         ifilevib=ifilevib+1
-         write(name,'("CIPvib.elec",i2.2)')ielec
-         open(ifilevib,file=name,status='new')
-      enddo
-      
-      open(7,file='CIPomg.res',status='new')
-      open(8,file='CIPtot.res',status='new')
+      open(7,file='CRPomg.res',status='new')
+      open(9,file='CRPvib.res',status='new')
+      open(8,file='CRPtot.res',status='new')
       open(10,file='PJ.res',status='new')
-      ifile=ifile0
+      ifile=10
       do iv=nv0,nv1
-      do ielec=1,nelecmax
+      do ielec=1,nel
          ifile=ifile+1
-         write(name,'("CIP.vf",i2.2,".ef",i1.1)')iv,ielec
+         write(name,'("CRP.vf",i2.2,".ef",i1.1)')iv,ielec
          open(ifile,file=name,status='unknown')
       enddo
       enddo
 
 **>> Writting results   
 
+      write(8,*)'# Energy(eV)  k^2(Angstrom^2)  CRP '
       do iedif=1,nenerdif
          enerdifeV=enermineV+dble(iedif-1)*estep 
          ener=enerdifeV/ceVcm*conve1
          xkini2=2.d0*xmasa*(ener)/hbr/hbr
-         CIPtot=0.d0
-         ifile=ifile0
+         CRPtot=0.d0
+         ifile=10
          do iomref0=-jref,jref
-            CIPomg(iomref0)=0.d0
+            CRPomg(iomref0)=0.d0
          enddo
          do Jt=0,Jtotmax
             if(PJ(iedif,Jt).lt.1.d-50)PJ(iedif,Jt)=0.d0
          enddo
       write(10,'(1000(1x,e16.7))')enerdifeV,(PJ(iedif,Jt),Jt=0,Jtotmax)
          do iv=nv0,nv1
-            do ielec=1,nelecmax
-               CIPv(iv,ielec)=0.d0
+            CRPv(iv)=0.d0
+
+            do ielec=1,nel
                ifile=ifile+1
                do j=j00,j11
                   S2mat(j)=0.d0
                   do iomref0=-jref,jref
-                     S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iomref0)
-                     CIPv(iv,ielec)=CIPv(iv,ielec)
-     &                             +CIP(iedif,j,iv,ielec,iomref0)
-                     CIPomg(iomref0)=CIPomg(iomref0)
-     &                       +CIP(iedif,j,iv,ielec,iomref0)
-                     CIPtot=CIPtot+CIP(iedif,j,iv,ielec,iomref0)
+                  do iom=iom0,iom1
+                     S2mat(j)=S2mat(j)+CRP(iedif,j,iv,ielec,iom,iomref0)
+                     CRPv(iv)=CRPv(iv)+CRP(iedif,j,iv,ielec,iom,iomref0)
+                     CRPomg(iomref0)=CRPomg(iomref0)
+     &                       +CRP(iedif,j,iv,ielec,iom,iomref0)
+                     CRPtot=CRPtot+CRP(iedif,j,iv,ielec,iom,iomref0)
                   enddo
-                  if(S2mat(j).lt.1.d-30)S2mat(j)=0.d0
+                  enddo
                enddo  ! j
-               write(ifile,'(1000(1x,e15.7))')enerdifeV,xkini2
+               write(ifile,'(50(1x,e15.7))')enerdifeV,xkini2
      &                                   ,(S2mat(j),j=j00,j11)
             enddo  ! ielec
          enddo  ! iv
 
-         do ielec=1,nelecmax
          do iv=nv0,nv1
-            if(CIPv(iv,ielec).lt.1.d-30)CIPv(iv,ielec)=0.d0
-         enddo
+            if(CRPv(iv).lt.1.d-30)CRPv(iv)=0.d0
          enddo
 
-         ifilevib=ifilevib0
-         do ielec=1,nelecmax
-            ifilevib=ifilevib+1
-            write(ifilevib,'(50(1x,e15.7))')enerdifeV,xkini2
-     &           ,(CIPv(iv,ielec),iv=nv0,nv1)
-         enddo
-         
-         write(8,'(50(1x,e15.7))')enerdifeV,xkini2,CIPtot
-         write(7,'(50(1x,e15.7))')enerdifeV,xkini2
-     &                    ,(CIPomg(iomref0),iomref0=-jref,jref)
+         write(9,'(1000(1x,e15.7))')enerdifeV,xkini2
+     &                    ,(CRPv(iv),iv=nv0,nv1)
+         write(8,'(50(1x,e15.7))')enerdifeV,xkini2,CRPtot
+         write(7,'(1000(1x,e15.7))')enerdifeV,xkini2
+     &                    ,(CRPomg(iomref0),iomref0=-jref,jref)
 
 
 
       enddo ! ienerdif 
-
+     
       stop
  999  write(6,*)' file "CalculatedJ.dat" not found '
       call flush(6)
+
 
       stop
  9999 format(80('*'),/,20x,' ',/

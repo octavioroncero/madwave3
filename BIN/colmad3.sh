@@ -50,6 +50,7 @@ gfortran  -O3 -o cip.out $dir2/CIP-fast.f $dir/liboctdyn.f
 rm rate.out rates2s.out
 gfortran  -O3 -o rate.out $dir2/rateFromSigma.f $dir/liboctdyn.f
 gfortran  -O3 -o rates2s.out $dir2/rate-s2s-fromCRP-extrapolation.f
+gfortran  -O3 -o inelastic-rates2s.out $dir2/rate-s2s-fromCIP-extrapolation.f
 
 ######################  sigma.out 
 rm sigma.out
@@ -58,7 +59,7 @@ mpif77  -O3 -o sigma.out $dir2/sigmaFromS2prod.f $dir/liboctdyn.f
 rm cheby-spectra.out
 mpif77  -O3 -o cheby-spectra.out $dir4/cheby-spectra.f 
 
-echo "10 executable codes: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out rate.out rates2s.out sigma.out  cheby-spectra.out"
+echo "11 executable codes: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out inelastic-rates2s.out rate.out rates2s.out sigma.out  cheby-spectra.out"
 
 echo "removing *.o and *.mod"
 rm -f *.o *.mod
