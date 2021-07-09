@@ -13,7 +13,7 @@ and photodissociation::
    $            --> 02(v',j') + 1
 
 in several electronic states, which are considered to be
-diabatic (diagonal) in the 01+2 reactant channel, and non-diagonal
+diabatic (diagonal) in the 01+2 reactant channel asymptote, and non-diagonal
 for 02+1 product channel, as a general situation.
 
 The user-provided potential must be set for each particular 012 system,
