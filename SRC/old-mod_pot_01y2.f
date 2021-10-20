@@ -15,7 +15,6 @@
 *     public ! for input data in namelist, potential and reduced grid
       
       real*8 :: vmintot,emaxtot,emindlt,delta2  ! for cheby propagations
-      real*8 :: vmaxtot                         ! for cheby propagations
 
 * mata potential and kinetic terms
       real*8 ::  vcutmaxeV,radcutmaxeV,rotcutmaxeV
@@ -120,13 +119,12 @@
       
       real*8 :: vmin,x1min,x2min,angmin,ctet,r1,r2,rpeq,Rg
       integer :: ie,ir1,ir2,iang,maxpoint,ielec,jelec,icount,maxpointang
-      integer :: je,ke,nsend,ierror,icorte,ieleccut
-      real*8 :: x1,gam,x2,calpha,pp,vref,coefmax
+      integer :: je,ke,nsend,ierror,icorte
+      real*8 :: x1,gam,x2,calpha,pp,vref
       real*8 :: vmat(nelecmax,nelecmax),potmat(nelecmax,nelecmax)
       real*8 :: vdiagon(nelecmax,nelecmax)
       real*8 :: Tpot(nelecmax,nelecmax),eigenpot(nelecmax)
 
-      vmaxtot=vcutmax
       npunreal(:)=0
       if(idproc.eq.0)then
          write(6,*)
@@ -179,18 +177,6 @@
                   if(ie.eq.je)vmat(ie,je)=vmat(ie,je)-vref
                enddo
                enddo
-
-               do ielec=1,nelecmax
-                  if(vmat(ielec,ielec).gt.vcutmax)then
-                     do jelec=1,nelec
-                        vmat(ielec,jelec)=0.d0
-                        vmat(jelec,ielec)=0.d0
-                     enddo
-                     vmat(ielec,ielec)=vcutmax
-                  endif
-               enddo
-              
-            
                if(nelecmax.eq.1)then
                   Tpot(1,1)=1.d0
                   eigenpot(1)=vmat(1,1)
@@ -201,28 +187,10 @@
                   call DIAGON(vdiagon,nelecmax,nelecmax,Tpot,EIGENpot)
                endif
 
-               icorte=0
-               do ielec=1,nelecmax
-                  if(eigenpot(ielec).gt.vcutmax)icorte=icorte+1
-                  if(eigenpot(ielec).gt.vmaxtot)vmaxtot=eigenpot(ielec)
-                  
-               enddo
-
-                  
-                  if(icorte.ge.1)then
-!----                     
-                       write(6,*)' vcutmax= ',vcutmax,iang,r2,r1
-                        write(6,*)' eigenpot= ',eigenpot
-                         write(6,*)' Vmat '
-                        do ielec=1,nelecmax
-                         write(6,*)(vmat(jelec,ielec),jelec=1,nelecmax)
-                      enddo
-!----                      
-                    
-                  endif
-                  
                icount=0
-               do ielec=1,nelecmax              
+               icorte=0
+            
+               do ielec=1,nelecmax
                   if(eigenpot(ielec).lt.vcutmax)icount=icount+1
                   if(eigenpot(ielec).lt.vmin)then
                       vmin=eigenpot(ielec)
@@ -230,8 +198,29 @@
                       x2min=r2
                       angmin=dacos(cgamma(iang))*180.d0/pi
                   endif
+                  if(eigenpot(ielec).gt.vcutmax)then
+                     eigenpot(ielec)=vcutmax
+                     icorte=icorte+1
+                  endif
                enddo
                
+               if(icorte.eq.nelecmax)then
+                  Tpot(:,:)=0.d0
+                  do ielec=1,nelecmax
+                     Tpot(ielec,ielec)=1.d0
+                  enddo
+               endif
+
+               do ielec=1,nelecmax
+               do jelec=1,nelecmax
+                  pp=0.d0
+                  do ke=1,nelecmax
+                     pp=pp+Tpot(ielec,ke)*eigenpot(ke)*Tpot(jelec,ke)
+                  enddo
+                  vmat(ielec,jelec)=pp
+               enddo
+               enddo
+
                if(icount.gt.0)then
                    npunreal(iang)=npunreal(iang)+1
                    if(idproc.eq.0)then
@@ -258,7 +247,7 @@
             write(10,*)iomdiat(ielec),iomatom(ielec)
      &           ,sigdiat(ielec),sigatom(ielec)
          enddo  
-         write(10,*)vmin,maxpoint,vmaxtot
+         write(10,*)vmin,maxpoint
          write(10,*)rmis1,rfin1,npun1
          write(10,*)rmis2,rfin2,npun2
          write(10,*)nangu,inc
@@ -278,9 +267,7 @@
              stop
          endif
 
-         write(6,*)'         Vmax (eV)= ',vmaxtot/conve1/eV2cm
-     &        ,' while Vcutmax(eV)= ',vcutmax/conve1/eV2cm
-         write(6,*)
+
          write(6,*)'         Vmin (eV)= ',vmin/conve1/eV2cm
          write(6,*)
          write(6,*)'      at r1=rpeq (angstroms) = ',x1min
@@ -327,7 +314,7 @@
          read(10,*)iomdiat(ie),iomatom(ie)
      &           ,sigdiat(ie),sigatom(ie)
       enddo
-      read(10,*)vmin,maxpoint,vmaxtot
+      read(10,*)vmin,maxpoint
       read(10,*)xmis1,xfin1,mpun1
       read(10,*)xmis2,xfin2,mpun2
       read(10,*)mangu,minc
@@ -457,7 +444,7 @@
 !     energy interval
 
       vmintot=vmin
-      emaxtot=vmaxtot+radcutmax+3.d0*rotcutmax
+      emaxtot=vcutmax+radcutmax+3.d0*rotcutmax
       delta2=0.5d0*(emaxtot-vmintot)
       emindlt=vmin+delta2
 
@@ -476,8 +463,12 @@
          write(6,*)'  Write potential files to plot'
          write(6,*)
          call flush(6)
-         
-         call write_pot
+
+         if(npun1.eq.1)then
+            call write_poteq
+         else
+            call write_pot
+         endif
       endif
      
       write(6,*)' ending pot2 in proc= ',idproc
@@ -559,6 +550,73 @@
       return
       end subroutine write_pot
 
+!--------------------------------------------------------------
+
+      subroutine write_poteq
+      use mod_gridYpara_01y2
+      implicit none
+      include "mpif.h"
+      double precision ::  vang(npun1,nangu),vangtot(npun1,nangu)
+      integer :: ifile,ie,je,jr2,ir1,ir2,iang,iang_proc,ir,nnn,ierr
+      double precision :: r1,r2
+
+      ifile=10
+      do ie=1,nelec
+      do je=ie,nelec
+         if(idproc.eq.0)then
+            write(name,"('potr2Cang.e',i1,'.'i1)")ie,je
+            open(ifile,file=name,status='unknown')
+         endif
+
+         do jr2=1,npun2
+            r2=rmis2+dble(jr2-1)*ah2
+!         if(r2.lt.absr2)then
+            do ir1=1,npun1
+            do iang=1,nangu
+               vang(ir1,iang)=0.d0
+               vangtot(ir1,iang)=0.d0
+            enddo
+            enddo
+         
+            do iang_proc=1,nanguproc
+               iang=indangreal(iang_proc,idproc)
+               do ir=1, npunreal(iang)
+                  ir1=indr1(ir,iang)
+                  ir2=indr2(ir,iang)
+                  if(ir2.eq.jr2)then
+                     vang(ir1,iang)=vvv(ir,iang_proc,ie,je)
+                  endif
+               enddo
+            enddo
+
+            nnn=npun1*nangu
+            call MPI_REDUCE(vang,vangtot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+
+            if(idproc.eq.0)then
+               ir1=1
+               do iang=1,nangu
+                  if(dabs(vangtot(ir1,iang)).lt.1.d-90)then
+                     vangtot(ir1,iang)=0.d0
+                  endif
+               enddo
+               do iang=1,nangu,nangplot
+                     write(ifile,'(500(1x,e15.7))')r2,cgamma(iang)
+     &                 ,vangtot(ir1,iang)
+               enddo
+
+               write(ifile,'()')
+
+            endif  ! idproc==0
+
+         enddo ! ir2
+
+         if(idproc==0)close(ifile)
+      enddo  ! jele
+      enddo  ! iele
+  
+      return
+      end subroutine write_poteq
 !--------------------------------------------------------------
       subroutine indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
       use mod_gridYpara_01y2

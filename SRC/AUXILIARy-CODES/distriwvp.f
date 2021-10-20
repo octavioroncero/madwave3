@@ -109,10 +109,24 @@
       do ie=1,nelec
          read(16,*)
       enddo
-      read(16,*)vmin
+      read(16,*,err=11)vmin,ijklm,vmaxtot
+      go to 22
+ 11    continue
+          vmaxtot=vcutmaxeV
+          close(16)
+          open(16,file='../pot/cont.pot',status='old')
+          read(16,*)nelec
+          do ie=1,nelec
+             read(16,*)
+          enddo
+          write(6,*)' old verion of mod_pot: setting vmaxtot=vcutmax'
+          read(16,*)vmin
+          
+ 22    continue
       close(16)
       vmintot=vmin
-      emaxtot=vcutmaxeV+radcutmaxeV+3.d0*rotcutmaxeV
+      vmaxtoteV=vmaxtot/(8065.5d0*conve1)
+      emaxtot=vmaxtoteV+radcutmaxeV+3.d0*rotcutmaxeV
       emaxtot=emaxtot*8065.5d0*conve1
       delta2=0.5d0*(emaxtot-vmintot)
       emindlt=vmin+delta2

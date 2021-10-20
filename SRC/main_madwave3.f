@@ -607,17 +607,17 @@ c! the partition.
             if(S2reac.lt.1.d-90)S2reac=0.d0
 
             if(iprod.eq.0)then
-               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,reacfct(ie)
             elseif(iprod.eq.1)then
-               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2reac*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &          ,(vibprod(iv)*photonorm,iv=nvini,min0(nvmaxprod,nvmax))
             else
-               write(20,"(41(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,S2no*photonorm

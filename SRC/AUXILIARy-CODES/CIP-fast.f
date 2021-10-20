@@ -403,8 +403,11 @@
      &                      CIP(iedif,j,iv,ielec,iomref0)
      &                       +S2mat(j)*dble(2*Jtot0+1)
 
-                     PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
-                    
+                     if(j.eq.jref.and.iv.eq.ivref
+     &                      .and.ielec.eq.ielecref)then
+                     else
+                        PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
+                     endif
                   enddo ! iedif
     
                endif  ! ifail=0
