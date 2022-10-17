@@ -527,18 +527,15 @@ c! the partition.
       implicit none
       include "mpif.h"
       integer :: ifile,iii,ielec,ivprod,iomprod,ican,iele,j,iv
-      integer :: ie,iom,ifilelec,ivfile,iiielec,iiiv
+      integer :: ie,iom
       integer :: iit0,iloop,indt
-      real*8 :: S2reac,Av,S2no,S2nobis
+      real*8 :: S2reac,Av,S2no
       real*8 :: vibprod(nviniprod:nvmaxprod)
       real*8 :: rotdistri(jini:jmax)
 
       real*8 :: S2pro(nviniprod:nvmaxprod,jiniprod:jmaxprod
      &                      ,iomminprod:iommaxprod)
       complex*16 :: zzz
- 
-      ifilelec=50
-      ivfile=100
 
 *     writes information at each loop in time
 
@@ -547,27 +544,10 @@ c! the partition.
      &              nvref,Jtot,iloop
          open(20,file=name,status='unknown')
       else
-!         write(name,'("S2mat.J",i3.3,".k",i5.5)')
-!     &              Jtot,iloop
-!     open(20,file=name,status='unknown')
-
-         do ielec=1,nelec
-            iiielec=ifilelec+ielec
-            write(name,"('distriS2reac.elec',i2.2)")ielec
-            open(iiielec,file=name,status='unknown')
-         enddo
-         iiiv=ivfile
-         do ielec=1,nelec
-            do iv=nvini,noBCstates(jini,ielec)
-               iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
-               write(name,"('distriS2reac.v',i2.2,'.e',i1.1)")
-     &                 iv,ielec
-               open(iiiv,file=name,status='unknown')
-            enddo
-         enddo
-
+         write(name,'("S2mat.J",i3.3,".k",i5.5)')
+     &              Jtot,iloop
+         open(20,file=name,status='unknown')
       endif
-
       do ie=1,netot
 
 ****> state-2-state for reactants
@@ -646,53 +626,14 @@ c! the partition.
             endif
          else                   ! npun1 rotdis
 
-!            write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
-!     &             ,S2reac*photonorm
-!     &            ,(rotdistri(j)*photonorm,j=jini,jmax)
-            
-            iiiv=ivfile
-            do ielec=1,nelec
-               S2nobis=0.d0
-            do iv=nvini,noBCstates(jini,iele)
-               iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
-               rotdistri(:)=0.d0
-               do ican=1,ncan
-                  iele=nelebas(ican)
-                  if(iele.eq.ielec)then
-                     do j=j00(ican),jmax,inc
-                     zzz=zS2(ie,iv,j,ican)/2.d0/pi
-                     Av=dreal(zzz*dconjg(zzz))
-                     rotdistri(j)=rotdistri(j)+S2(iv,j,ican)
-                     S2nobis=S2nobis+S2(iv,j,ican)
-                     enddo ! j
-                  endif ! iele=ielec
-               enddo ! ican
-               write(iiiv,"(1000(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+            write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+     &             ,S2reac*photonorm
      &            ,(rotdistri(j)*photonorm,j=jini,jmax)
-
-            enddo               ! iv
-                iiielec=ifilelec+ielec
-               write(iiielec,"(1000(1x,e15.7))")
-     &           etotS2(ie)/conve1/8065.5d0 ,S2nobis*photonorm
- 
-            enddo ! ielec
 
          endif
       enddo ! ie=1,ne
    
-!      close(20)
-
-      do ielec=1,nelec
-         iiielec=ifilelec+ielec
-         close(iiielec)
-      enddo
-      iiiv=ivfile
-      do ielec=1,nelec
-         do iv=nvini,noBCstates(jini,ielec)
-            iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
-            close(iiiv)
-         enddo
-      enddo
+      close(20)
 
       return
       end       

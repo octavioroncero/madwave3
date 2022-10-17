@@ -1,226 +1,296 @@
-!!      program Aeinstein3
+      program Aeinstein
 
-      implicit real*8(a-h,o-z)
-      character*40 :: filegrid,filebnd
+! *********************************************************************
+!*     *  Calculate Einstein coefficients between bound states
+!     *     *     of a triatomic molecule
+!  from state A  --> stateX
+!*     *       Using  Jacobi coordinates                            **
+!*               Program works internally in a.u.                    **
+! *********************************************************************
+
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_Hphi_01y2
+      use mod_photoini_01y2
+
+      implicit none
+      include "mpif.h"     
+      integer ::  nv1_fin,nv2_fin,Jtot_fin,ipar_fin,iv_fin,iv_ini
+      double precision ::  EShift_fin_eV, Energy_fin_eV
+      double precision ::  EShift_fin, Energy_fin, Energy_ini
+      double precision ::  Ephoton_eV,Ephoton,Atot,autocor,xmat,xmat_tot
+      integer :: ierror,i
+      integer :: icanp,ielec,iom,iangp,ir,ir1,ir2,iang
+      character*50 :: filename
+
+      double precision, allocatable :: Efin(:),Apartial(:),funA(:,:,:,:)
+
+!     initial state is read in dip_bnd routine of module mod_photoini_01y2.f
+!     in directory ../bnd
+!     using the namelist inputbnd with data
+!      namelist /inputbnd/Jtotini,iparini,nvbound,nprocbnd,maxbnddim
+!     &                  ,igridbnd
+!     whose initial energy is energy_ini_eV
+!
       
-      include "madwave3.parameter.h"
+*********************************************************
+      namelist /einstein/nv1_fin,nv2_fin,EShift_fin_eV
+*********************************************************
 
-      parameter(nv1A=1,nv2A=119,JtotA=0)
-      parameter(nv1X=1,nv2X=132,JtotX=1)
-      parameter(EShiftA_eV=13.054051d0)    ! in eV  
+c! Initialize MPI environment and get proc's ID and number of proc in
+c! the partition.
 
-      dimension weight(nangu2),cgamma(nangu2)
-      dimension wreal(nangu2)
-      dimension dipbnd(npun1,npun2,nangu,nelecmax,0:Jtot)
-      dimension bnd(npun1,npun2,nangu,nelecmax,0:Jtot)
-      dimension EA(nv1A:nv2A),cangleA(nv1A:nv2A)
-      dimension EX(nv1X:nv2X),cangleX(nv1X:nv2X)
-      dimension Apartial(nv1X:nv2X)
+      call MPI_INIT(ierror)
+!      call MPI_INIT_THREAD(MPI_THREAD_FUNNELED,ierr)
+      call MPI_COMM_RANK(MPI_COMM_WORLD, idproc, ierror)
+      call MPI_COMM_SIZE(MPI_COMM_WORLD, nproc, ierror)
+
+      write(filename,'("sal."i3.3)')idproc
+      open(6,file=filename,status='unknown')
+
+!     determining grids and costants
       
-*********************************************************************
-*     *  Calculate Einstein coefficients between bound states
-*     *     of a triatomic molecule
-*     *       Using  Jacobi coordinates                                 **
-*              Program works internally in a.u.                              **
-*********************************************************************
-
-      open(6,file='sal',status='unknown')
-      open(7,file='sal-HCN',status='unknown')
-      open(8,file='sal-HNC',status='unknown')
+      call input_grid
+      call pot0
+      call  paralelizacion
+      call basis
       
-**> constants
+!     reading potential
 
-      zero = dcmplx(0.d0,0.d0)
-      zeye = dcmplx(0.d0,1.d0)
-      pi = dacos(-1.d0)
-      conve1 = 1.197d-4
-      CONVL=.52917726D0
-      CONVE=4.55633538D-6
-      CONVM=.182288853D4
-      hbr=convl/dsqrt(convm*conve/conve1) ! in zots
+      call pot2
+      Jtot_fin=Jtot
+      ipar_fin=iparity
+!     setting rpaq and rpaq0 dimensions
+
+      allocate(rpaq0(nbastotproc)
+     &    , funA(npun1,npun2,nangu2,0:Jtot_fin)
+     &     )
+
+      rpaq0(:)=0.d0
+      funA(:,:,:,:)=0.d0
+
+!     reading data for rovibroelectronic transitions
       
-       ev2cm=8065.5d0
-       au2eV=27.21113957d0
-       zot2au=(1.d0/conve1)*conve
-
-       cluz_au=137.d0
-       epsilon0_au=0.07957747d0 
-
-       xxx=(cluz_au)**3
-       Aconstant_au= 1.d0/(3.d0*pi*xxx*epsilon0_au)    ! = 1/(3 pi hbar^4 Epsilon_0 c^3) 
-       CSconstant_au= 1.d0/(cluz_au*epsilon0_au)    ! = 1/(hbar^2 Epsilon_0 c) 
-       EShiftA=EshiftA_eV/au2eV
-**>>   radial grids (in angstroms)
-
-      ah2 = (rfin2-rmis2)/dble(npun2-1)
-      if(npun1.gt.1)then
-        div=dble(npun1-1)
-        ah1 = (rfin1-rmis1)/div
-        steptot=ah1*ah2
-      else
-        ah1=0.d0
-        steptot=ah2
-      endif
-
-**>> angular grid
+      write(6,*)
+      write(6,*)'  AEinstein data'
+      write(6,*)'  -------------------'
+         open(10,file='input.dat',status='old')
+         read(10,nml =einstein)
+         write(6,nml =einstein)
+         call flush(6)
+         close(10)
+         EShift_fin=Eshift_fin_eV/au2eV
+       
+      allocate(Efin(nv1_fin:nv2_fin),Apartial(nv1_fin:nv2_fin)
+     &       , stat=ierror)
       
-c         call gauleg(weight,cgamma,nangu2)
 
-         do iang=1,nangu
-            wreal(iang)=weight(iang)*dble(inc)
-         enddo
+!     reading transition dipole moments
+      
+      call read_trans_dipole
+      
+!     reading data for initial state: d.e | Psi^Jini > of energy= energy_ini_eV
+      
+      call dip_bnd
+      energy_ini=energy_ini_eV/au2eV
+      iv_ini=nvbound
+      
+!     loop over final vibrational states
+      
+      Atot=0.d0
+      xmat_tot=0.d0
+      do iv_fin=nv1_fin,nv2_fin
+         call read_bndgridA(funA
+     &                 ,iv_fin,Jtot_fin,ipar_fin
+     &        ,energy_fin_eV)
+         
+         energy_fin=energy_fin_eV/au2eV
+         Ephoton_eV=energy_fin_eV- EShift_fin_eV-Energy_ini_eV
+         Ephoton=Ephoton_ev/au2eV
 
-*  Reading energies
-      open(10,file='bnd/energies.dat',status='old')
-      do ivX=nv1X,nv2X
-         read(10,*)iii,EX(ivX),cangleX(ivX)
-         Ex(ivX)=Ex(ivX)/au2eV
-      enddo
-      close(10)
-      open(10,file='dipbnd/energies.dat',status='old')
-      do ivA=nv1A,nv2A
-         read(10,*)iii,EA(ivA),cangleA(ivA)
-         EA(ivA)=EA(ivA)/au2eV
-      enddo
-      close(10)
-
-*     Loop over initial vibrational state in the excited electyronic state
-*     reading d.e | Psi_v^A >  and < Psi_v^X |
-
-      do ivA=nv1A,nv2A
-         dipbnd(:,:,:,:,:)=0.d0
-         Atot=0.d0
-         XCShcn=0.d0
-         XCShnc=0.d0
-         Ahcn=0.d0
-         Ahnc=0.d0
-         do iprocbnd=0,nprocdim-1
-            write(filegrid,'("dipbnd/grid.ip",i3.3)')iprocbnd
-            write(filebnd,'("dipbnd/dipbnd.iv",i3.3,".ip",i3.3)')
-     &                       ivA,iprocbnd
-            open(110,file=filebnd,status='old')
-            open(111,file=filegrid,status='old')
-            call readbnd(dipbnd)
-            close(110)
-            close(111)
-         enddo  ! reading in nprocbnd files
-
-         do ivX=nv1X,nv2X
-            bnd(:,:,:,:,:)=0.d0
-            do iprocbnd=0,nprocdim-1
-               write(filegrid,'("bnd/grid.ip",i3.3)')iprocbnd
-               write(filebnd,'("bnd/bnd.iv",i3.3,".ip",i3.3)')
-     &                       ivX,iprocbnd
-               open(110,file=filebnd,status='old')
-               open(111,file=filegrid,status='old')
-               call readbnd(bnd)
-               close(110)
-               close(111)
-            enddo  ! reading in nprocbnd files
 
 **>> electric dipole matrix elements
 
-            sola=0.d0
-            xmat=0.d0
-            do iom=0,Jtot
-            do ielec=1,nelecmax
-            do iang=1,nangu
-            do ir2=1,npun2
-            do ir1=1,npun1
-               x= bnd(ir1,ir2,iang,ielec,iom) 
-               y= dipbnd(ir1,ir2,iang,ielec,iom) 
-               sola=sola+x*x
-               xmat=xmat+x*y
-            enddo
-            enddo
-            enddo
-            enddo
-            enddo
+         autocor=0.d0
+         do i=1,ntotproc(idproc)
+            call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
+            iang=indangreal(iangp,idproc)
+            autocor=autocor+rpaq0(i)*funA(ir1,ir2,iang,iom)
+         enddo
+         call MPI_REDUCE(autocor,xmat,1,MPI_REAL8,MPI_SUM
+     &        ,0,MPI_COMM_WORLD,ierror)
 
-
-            Ephoton=Ea(ivA)+EshiftA-Ex(ivX)
-         Apartial(ivX)=xmat*xmat*Ephoton*Ephoton*Ephoton*Aconstant_au
-            write(17,'(2(1x,i3),3(d15.7))')
-     &           ivA,ivX,sola,xmat,Apartial(ivX)
-
-            Atot=Atot+Apartial(ivX)
-            if(cangleX(ivX).lt.0.d0)then
-               Ahcn=Ahcn+Apartial(ivX)
-            else
-               Ahnc=Ahnc+Apartial(ivX)
-            endif
-
-            if(ivX.eq.1)then
-               XCShcn=xmat*xmat*Ephoton*CSconstant_au
-               EphotonHCN=Ephoton
-            elseif(ivX.eq.19)then
-               XCShnc=xmat*xmat*Ephoton*CSconstant_au
-               EphotonHNC=Ephoton
-            endif
-
-         enddo  ! ivX
+         write(6,*)xmat*xmat,' overlap**2 with renormalized d.e Psi'
+         xmat_tot=xmat_tot+xmat*xmat
+         write(6,*)energy_ini_eV,energy_fin_eV,Eshift_fin_eV,Ephoton_eV
+     &    ,'  E_i   E_f Shift Photon (eV)'
          
-         write(6,'(1x,i5,20(1x,e15.7))')ivA,Atot,Ephoton,Ahcn/Atot
-     &                                        ,XCShcn,xCShnc
-         if(cangleA(ivA).lt.0.d0)then  ! HCN
-              write(7,'(1x,i5,20(1x,e15.7))')ivA,Atot,Ahcn/Atot
-     &                              ,EphotonHCN,XCShcn
-         else  ! HNC
-              write(8,'(1x,i5,20(1x,e15.7))')ivA,Atot,hhnc/Atot
-     &                              ,EphotonHNC,XCShnc
+         Apartial(iv_fin)=dabs(xmat*xmat*xnorm_ini
+     &                     *Ephoton*Ephoton*Ephoton *Aconstant_au)
+         if(idproc.eq.0)then
+         write(6,'(2(1x,i3),2(1x,d15.7)
+     &              ," v_i  v_f  A_{vi vf} E_photon")')
+     &           iv_ini,iv_fin,Apartial(iv_fin),Ephoton_eV
          endif
-      enddo  ! ivA
+         Atot=Atot+Apartial(iv_fin)
+
+       enddo  ! ivX
+         
+       if(idproc.eq.0)then
+          write(6,*)xmat_tot,' total overlap^2 with renorm. d.e Psi'
+      
+          write(6,*)' v= ',iv_ini,' total rate(a.u.)= ',Atot
+     &          ,' lifetime(s)=',2.418884396d-17/Atot
+       endif                                        
 
       stop
       end
 
-*******************************************************
 
-      subroutine readbnd(f)
-      implicit real*8(a-h,o-z)
-      include "madwave3.parameter.h"
+!----------------------------------------
 
-      dimension f(npun1,npun2,nangu,nelecmax,0:Jtot)
+      subroutine read_bndgridA(funA,nvbound_fin,Jtot_fin,ipar_fin
+     &                       ,energy_fin_eV)
+      
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_Hphi_01y2
+      use mod_photoini_01y2
+      implicit none
+      include "mpif.h"
+      character*50 filegrid,filebnd
 
-      ah1=(rfin1-rmis1)/dble(npun1-1)
-      ah2=(rfin2-rmis2)/dble(npun2-1)
-      read(111,*)nbnddim
+      integer :: ielecbnd,iombnd
+     &                     ,ir1bnd,ir2bnd,iangbnd
+      real*8 :: bndvec
+            integer :: ielecbndmin,iombndmin,ibnd,ijk,iiicanp,iii
+      integer :: iiir,iangp,ierror,i,iang,icanp,ielec,ierr
+      integer :: iprocbnd,nbnddim,npun1bnd,npun2bnd,incbnd
+      integer :: iom,iomini,iq,ir,ir1,ir2,nangubnd,j2,ifail
+      integer :: ivX,it,it0,indt,iloop,nnn
+      real*8 :: rmis1bnd,rfin1bnd,rmis2bnd,rfin2bnd
+      real*8 :: ah1bnd,ah2bnd,x123,xnorm,xnormtot,y123,ssign
+      real*8 :: yyy,xxx,coef,coef2,xx,yy,energy_fin_eV
+      real*8 :: xmat,autocor
+      integer :: nvbound_fin,Jtot_fin,ipar_fin
+      double precision :: funA(npun1,npun2,nangu2,0:Jtot_fin)
 
-         read(111,*)rmis1bnd,rfin1bnd,npun1bnd
-         ah1bnd=(rfin1bnd-rmis1bnd)/dble(npun1bnd-1)
-         if(dabs(rmis1-rmis1bnd).gt.1.d-4
-     &      .or.dabs(ah1-ah1bnd).gt.1.d-4)then
+!      allocate(ielecbnd(maxbnddim),iombnd(maxbnddim)
+!     &     ,ir1bnd(maxbnddim),ir2bnd(maxbnddim),iangbnd(maxbnddim)
+!     &     ,bndvec(maxbnddim)
+!     &     , stat=ierror)
+
+*     reading bnd
+      write(6,*)'--------------------------------'
+      write(6,*)'   State A kept in ../bndAJXYp '
+      call flush(6)
+         write(6,*)'   reading bound nvbound= ',nvbound_fin
+     &                             ,' state from ',nprocbnd
+     &                                    ,' files in bnd dir'
+          write(6,*)'      calculated with boundlanz-madwave.f '
+          write(6,*)'           in the same grid!!!!!'
+          write(6,*)' '
+
+**>> reading grid of bnd calculation for Jtotini
+*    to adapt it to the dissociation dynamics with Jtot and nelecmax
+
+          funA(:,:,:,:)=0.d0
+          xnorm=0.d0
+         do iprocbnd=0,nprocbnd-1
+            if(ipar_fin.eq.1)then
+               write(filebnd
+     &         ,'("../bndAJ",i2.2,"p/bnd.iv",i3.3,".ip",i3.3)')
+     &                             Jtot_fin,nvbound_fin,iprocbnd
+
+               write(filegrid,'("../bndAJ",i2.2,"p/grid.ip",i3.3)')
+     &                           Jtot_fin,iprocbnd
+            elseif(ipar_fin.eq.-1)then
+               write(filebnd
+     &         ,'("../bndAJ",i2.2,"m/bnd.iv",i3.3,".ip",i3.3)')
+     &                             Jtot_fin,nvbound_fin,iprocbnd
+
+               write(filegrid,'("../bndAJ",i2.2,"m/grid.ip",i3.3)')
+     &                           Jtot_fin,iprocbnd
+            else
+               write(6,*)' no good ipar_fin =',ipar_fin
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+            open(111,file=filegrid,status='old')
+
+            open(110,file=filebnd,status='old')
+
+            read(110,*)ivX,energy_fin_eV
+         
+            read(111,*)nbnddim
+            write(6,*)' Reading ',nbnddim,' values in ',filebnd
+     &        ,' & ',filegrid
+            call flush(6)
+
+            read(111,*)rmis1bnd,rfin1bnd,npun1bnd
+            ah1bnd=(rfin1bnd-rmis1bnd)/dble(npun1bnd-1)
+            if(dabs(rmis1-rmis1bnd).gt.1.d-4
+     &         .or.dabs(ah1-ah1bnd).gt.1.d-4)then
                write(6,*)'  grid in r1 for bnd non equal '
                write(6,*)'  rmis1bnd,ah1bnd= '
      &                    ,rmis1bnd,ah1bnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
                stop
-         endif
+            endif
 
-         read(111,*)rmis2bnd,rfin2bnd,npun2bnd
-         ah2bnd=(rfin2bnd-rmis2bnd)/dble(npun2bnd-1)
-         if(dabs(rmis2-rmis2bnd).gt.1.d-4
-     &      .or.dabs(ah2-ah2bnd).gt.1.d-4)then
+            read(111,*)rmis2bnd,rfin2bnd,npun2bnd
+            ah2bnd=(rfin2bnd-rmis2bnd)/dble(npun2bnd-1)
+            if(dabs(rmis2-rmis2bnd).gt.1.d-4
+     &         .or.dabs(ah2-ah2bnd).gt.1.d-4)then
                write(6,*)'  grid in r2 for bnd non equal '
                write(6,*)'  rmis2bnd,ah2bnd= '
      &                    ,rmis2bnd,ah2bnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
                stop
-         endif
+            endif
 
-         read(111,*)nangubnd,incbnd
-         if(nangu.ne.nangubnd.or.inc.ne.incbnd)then
-            write(6,*)' grig in angle for bnd non equal '
-            write(6,*)'  nangubnd,incbnd= ',nangubnd,incbnd
-            stop
-         endif
+            read(111,*)nangubnd,incbnd
+            if(nangu.ne.nangubnd.or.inc.ne.incbnd)then
+               write(6,*)' grig in angle for bnd non equal '
+               write(6,*)'  nangubnd,incbnd= ',nangubnd,incbnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
 
-      do ibnd=1,nbnddim
-            read(111,*)iii,iiicanp,ielecbnd,iombnd,iangp
+
+c-----> end checking grids
+
+            do ibnd=1,nbnddim
+               read(111,*)iii,iiicanp,ielecbnd,iombnd,iangp
      &            ,iiir,ir1bnd,ir2bnd,iangbnd
-            
-            read(110,*)bndvec
+               read(110,*)xxx
+               ir1=ir1bnd
+               ir2=ir2bnd
+               iang=iangbnd
+               iom=iombnd
+               funA(ir1,ir2,iang,iom)=xxx
+!               write(69,*)ir1,ir2,iang,iom,xxx
+               xnorm=xnorm+xxx*xxx
+            enddo
 
-            f(ir1bnd,ir2bnd,iangbnd,ielecbnd,iombnd)=bndvec
-      enddo
+            close(110)
+            close(111)
+         
+         enddo                     ! iprocbnd
 
+         write(6,*)'     norm= ',xnorm
+      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+
+ !     deallocate(ielecbnd,iombnd
+ !    &     ,ir1bnd,ir2bnd,iangbnd
+ !    &     ,bndvec)
       return
-      end
+
+      end subroutine read_bndgridA

@@ -51,7 +51,7 @@
       real*8,allocatable,dimension(:) :: vibprod,rotprod,vibrot
       integer,allocatable,dimension(:,:) :: noBCstates
       complex*16,allocatable,dimension(:,:,:,:) :: zS2prod
-      integer :: noloopreal,ifail
+      integer :: noloopreal,ifail,ncanmax,ican
 
 **>> constants
 
@@ -158,7 +158,8 @@
          j1=jmax
          nv0=nvini
          nv1=nvmax
-         allocate(Cvjprod(nv0:nv1,j00:j1,iom0:iom1))
+         ncanmax=(iom1-iom0+1)*nelecmax
+         allocate(Cvjprod(nv0:nv1,j00:j1,ncanmax))
 
          xmasa=(xm2*(xm0+xm1))/xmtot
          xmasaprod=xmasa
@@ -217,15 +218,17 @@
             do ik=1,ntimes
                kcheby=kcheby+1
                read(16,err=2)it,Cvjprod
-               do Iom=iom0,iom1
+               ican=0
                do ielec=1,nelecmax
+               do Iom=iom0,iom1
+                     ican=ican+1
                do j=j00,j1      
                do iv=nv0,noBCstates(j,ielec)
                   if(iv.eq.nvref.and.j.eq.jref.and.iom.eq.iomref
      &            .and.kcheby.lt.kminelastic)then
                      prodCvj(kcheby,iv,j,ielec,iom)=0.d0
                   else
-                     prodCvj(kcheby,iv,j,ielec,iom)=Cvjprod(iv,j,iom)
+                     prodCvj(kcheby,iv,j,ielec,iom)=Cvjprod(iv,j,ican)
                   endif
                enddo
                enddo

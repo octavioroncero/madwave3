@@ -1,4 +1,4 @@
-       module mod_photoini_01y2
+        module mod_photoini_01y2
 !
 !     generation of photo initiated process
 !     iphoto=1 ----> rpaq0=   <Jtot | d . d | Psi^Jtotini_nvbound >
@@ -35,6 +35,7 @@
       
       integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,ierror
       real*8 :: r1,r2,cgam
+      real*8 :: rpeq,Rg,ctet,X1,gam,X2,calpha
       
       real*8 :: dx(nelecmax),dy(nelecmax),dz(nelecmax)
       real*8 :: dip(-1:1,nelecmax)
@@ -59,6 +60,20 @@
             r1=rmis1+dble(ir1-1)*ah1
             r2=rmis2+dble(ir2-1)*ah2
             cgam=cgamma(iang)
+
+            rpeq=r1/convl  ! to call pot in a.u.
+            Rg=r2/convl
+
+            ctet=cgamma(iang)
+            X1=rpeq
+            gam=xm1/(xm0+xm1)
+            X2=Rg*Rg+gam*gam*rpeq*rpeq+2.d0*gam*Rg*rpeq*ctet
+            X2=dsqrt(X2)
+            calpha=(Rg*ctet+gam*rpeq)/X2
+            if(dabs(calpha).gt.1.d0)then
+               calpha=calpha/dabs(calpha)
+            endif
+            
             call dipele(r1,r2,cgam,dx,dy,dz,nelecmax,nelecmax)
 
             do ielec=1,nelecmax
@@ -284,7 +299,7 @@
      &                             ,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(xnormOmg,nnn,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
       do iom=iommin,iommax
-         write(6,*)' Omg= ',iom,'  Prob= ',xnormOmg(iom)/dsqrt(xnormtot)
+         write(6,*)' Omg= ',iom,'  Prob= ',xnormOmg(iom)/xnormtot
       enddo
       write(6,*)      
 
