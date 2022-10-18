@@ -121,7 +121,7 @@
       double precision :: xr2,xxx
       include "mpif.h"
  
-
+      rpaqproc(:)=0.d0
       write(6,*)'   Initial wave packet in Reactants Jacobi coordinates'
 
 !      write(name,"('funini.id',i2.2)")idproc
@@ -181,6 +181,7 @@
       write(6,*)'                    tranforming initial wvp!!!'
       write(6,*)'       iprod',iprod
 
+      rpaqproc(:)=0.d0
 ! allocating variables 
 
       allocate(ff(npun2,2),xx(npun2),pop(iommin:iommax)
