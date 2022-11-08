@@ -3,6 +3,7 @@
 !     generation of photo initiated process
 !     iphoto=1 ----> rpaq0=   <Jtot | d . d | Psi^Jtotini_nvbound >
 !     iphoto=2 ---->  rpaq0=  Psi^Jtotini_nvbound
+!     iphoto=3 ---->  rpaq0=  Velec Psi^Jtotini_nvbound
 !
       use mod_gridYpara_01y2
       use mod_pot_01y2
@@ -16,6 +17,7 @@
       integer :: Jtotini,iparini,nvbound,nprocbnd,maxbnddim
       integer :: ifileauto,igridbnd
       real*8, allocatable :: dipol(:,:,:,:)
+      real*8, allocatable :: coupling(:,:,:)
       real*8 :: energy_ini_eV,xnorm_ini
       real*8,allocatable :: factresj(:,:,:)
       
@@ -74,7 +76,7 @@
                calpha=calpha/dabs(calpha)
             endif
             
-            call dipele(r1,r2,cgam,dx,dy,dz,nelecmax,nelecmax)
+            call dipele(rpeq,Rg,cgam,dx,dy,dz,nelecmax,nelecmax)
 
             do ielec=1,nelecmax
                if(dabs(dx(ielec)).gt.1.d-10
@@ -241,7 +243,17 @@
            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
            stop
          endif
-      elseif(iphoto.gt.2)then
+      elseif(iphoto.eq.3)then
+         write(6,*)'       Phi^J_v(t=0)= V_elec Psi^Jini_v >'
+
+         if(Jtot.ne.Jtotini.or.iparity.ne.iparini)then
+           write(6,*)' Forbidden transition for iphoto=2'
+           write(6,*)' jtot, iparity should be Jtotini,iparini'
+           call flush(6)
+           call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+           stop
+         endif
+      elseif(iphoto.gt.3)then
          write(6,*)' iphoto =',iphoto,' is out of range!'
          write(6,*)'       Change it to 0,1 or 2'
          call flush(6)
@@ -254,12 +266,23 @@
       write(6,*)'              v= ',nvbound
       write(6,*)' '
 
-      if(igridbnd.eq.1)then
-           call dip_bndgrid
-      else
-           call dip_bndbase
+      if(iphoto.eq.1.or.iphoto.eq.2)then
+         if(igridbnd.eq.1)then
+              call dip_bndgrid
+         else
+              call dip_bndbase
+         endif
+      elseif(iphoto.eq.3)then
+         if(igridbnd.eq.1)then              
+            call read_coupling
+            call coup_bndgrid
+         else
+            write(6,*)' for iphoto=3, igridbnd must be 1'
+            call flush(6)
+            stop
+         endif
+ 
       endif
-  
 **> checking norm
 
       xnorm=0.d0
@@ -833,5 +856,283 @@ c         xnorm=xnorm+pop
       return
       end subroutine dip_bndbase
 !--------------------------------------------------
- !=======================================================
+!--------------------------------------------------
+      subroutine set_coupling
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      implicit none
+      include "mpif.h"
+      
+      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,ierror
+      real*8 :: r1,r2,cgam
+      real*8 :: rpeq,Rg,ctet,X1,gam,X2,calpha
+      
+      real*8 :: coup(nelecmax)
+
+      write(6,*)
+      write(6,*)'   --------------------------------'
+      write(6,*)'     Setting electronic coupling   '
+      write(6,*)'   --------------------------------'
+      write(6,*)
+      call flush(6)
+      
+      call setcoupini
+      
+      do iang_proc=1,nanguprocdim
+         iang=indangreal(iang_proc,idproc)
+         write(name,'("coup/coup.",i3.3,".dat")')iang
+         write(6,*)' in set_coupling ',idproc,iang_proc,iang,name
+         open(10,file=name,status='new')
+         do ir=1,npunreal(iang)
+            ir1=indr1(ir,iang)
+            ir2=indr2(ir,iang)
+            r1=rmis1+dble(ir1-1)*ah1
+            r2=rmis2+dble(ir2-1)*ah2
+            cgam=cgamma(iang)
+
+            rpeq=r1/convl  ! to call pot in a.u.
+            Rg=r2/convl
+
+            ctet=cgamma(iang)
+            X1=rpeq
+            gam=xm1/(xm0+xm1)
+            X2=Rg*Rg+gam*gam*rpeq*rpeq+2.d0*gam*Rg*rpeq*ctet
+            X2=dsqrt(X2)
+            calpha=(Rg*ctet+gam*rpeq)/X2
+            if(dabs(calpha).gt.1.d0)then
+               calpha=calpha/dabs(calpha)
+            endif
+            
+            call ecoupling(x1,x2,calpha,coup,nelecmax,nelecmax)
+
+            write(10,*)ir1,ir2
+     &              ,(coup(ielec),ielec=1,nelecmax)
+         enddo                  ! ir
+         close(10)
+      enddo  ! iang_proc
+
+      write(6,*)'  electonic couplings files written'
+      call flush(6)
+    
+      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+      write(6,*)ierror
+      
+      return
+      end subroutine set_coupling
+!--------------------------------------------------
+      subroutine read_coupling
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_Hphi_01y2
+      implicit none
+      include "mpif.h"
+     
+      integer :: ierror
+      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,nsend
+      real*8 :: r1,r2,cgam,xxx
+      
+      allocate(coupling(npuntot,nangu,nelecmax)
+     &       , stat=ierror)
+      norealproc_mem=norealproc_mem
+     &    +npuntot*nangu*nelecmax
+      write(6,*)'norealproc_mem= ',norealproc_mem
+      write(6,*)'nointegerproc_mem= ',nointegerproc_mem
+      call flush(6)
+      
+      write(6,*)
+      write(6,*)'   -----------------------------'
+      write(6,*)'   Reading electronic coupling  '
+
+      do iang=1,nangu
+         write(name,'("../coup/coup.",i3.3,".dat")')iang
+         open(10,file=name,status='old')
+         
+         do ir=1,npunreal(iang)
+            ir1=indr1(ir,iang)
+            ir2=indr2(ir,iang)
+            read(10,*)ir1,ir2
+     &   ,(coupling(ir,iang,ielec),ielec=1,nelecmax)
+         enddo                  ! ir
+         close(10)
+      enddo                     ! iang
+      
+      write(6,*)
+      write(6,*)'    electronic coupling READ  '
+      write(6,*)'   ---------------------------'
+      write(6,*)
+
+      return
+      end subroutine read_coupling
+!--------------------------------------------------
+      subroutine coup_bndgrid
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_Hphi_01y2
+      implicit none
+      include "mpif.h"
+      character*50 :: filegrid,filebnd
+      integer, allocatable:: ielecbnd(:),iombnd(:)
+     &                     ,ir1bnd(:),ir2bnd(:),iangbnd(:)
+      real*8,allocatable :: bndvec(:)
+ 
+      integer :: ielecbndmin,iombndmin,ibnd,ijk,iiicanp,iii
+      integer :: iiir,iangp,ierror,i,iang,icanp,ielec,ierr
+      integer :: iprocbnd,nbnddim,npun1bnd,npun2bnd,incbnd
+      integer :: iom,iomini,iq,ir,ir1,ir2,nangubnd,j2,ifail
+      integer :: ivX,it,it0,indt,iloop,nnn
+      real*8 :: rmis1bnd,rfin1bnd,rmis2bnd,rfin2bnd
+      real*8 :: ah1bnd,ah2bnd,x123,xnorm,xnormtot,y123,ssign
+      real*8 :: yyy,xxx,coef,coef2,xx,yy
+
+      allocate(ielecbnd(maxbnddim),iombnd(maxbnddim)
+     &     ,ir1bnd(maxbnddim),ir2bnd(maxbnddim),iangbnd(maxbnddim)
+     &     ,bndvec(maxbnddim)
+     &     , stat=ierror)
+
+* reading bnd 
+         write(6,*)'   reading bound nvbound= ',nvbound
+     &                             ,' state from ',nprocbnd
+     &                                    ,' files in bnd dir'
+          write(6,*)'      calculated with boundlanz-madwave.f '
+          write(6,*)'           in the same grid!!!!!'
+          write(6,*)' '
+
+**>> reading grid of bnd calculation for Jtotini=Jtot
+*    to adapt it to the dissociation dynamics with Jtot and nelecmax
+
+         do iprocbnd=0,nprocbnd-1
+            if(iparini.eq.1)then
+               write(filebnd
+     &         ,'("../bndJ",i2.2,"p/bnd.iv",i3.3,".ip",i3.3)')
+     &                             Jtotini,nvbound,iprocbnd
+
+               write(filegrid,'("../bndJ",i2.2,"p/grid.ip",i3.3)')
+     &                           Jtotini,iprocbnd
+            elseif(iparini.eq.-1)then
+               write(filebnd
+     &         ,'("../bndJ",i2.2,"m/bnd.iv",i3.3,".ip",i3.3)')
+     &                             Jtotini,nvbound,iprocbnd
+
+               write(filegrid,'("../bndJ",i2.2,"m/grid.ip",i3.3)')
+     &                           Jtotini,iprocbnd
+            else
+               write(6,*)' no good iparini =',iparini
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+
+            open(111,file=filegrid,status='old')
+
+            open(110,file=filebnd,status='old')
+
+            read(110,*)ivX,energy_ini_eV
+         
+            read(111,*)nbnddim
+            write(6,*)' Reading ',nbnddim,' values in ',filebnd
+     &        ,' & ',filegrid
+            call flush(6)
+            if(nbnddim.gt.maxbnddim)then
+            write(6,*)'  nbnddim= ',nbnddim,'  > maxbnddim= ',maxbnddim
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+            read(111,*)rmis1bnd,rfin1bnd,npun1bnd
+            ah1bnd=(rfin1bnd-rmis1bnd)/dble(npun1bnd-1)
+            if(dabs(rmis1-rmis1bnd).gt.1.d-4
+     &         .or.dabs(ah1-ah1bnd).gt.1.d-4)then
+               write(6,*)'  grid in r1 for bnd non equal '
+               write(6,*)'  rmis1bnd,ah1bnd= '
+     &                    ,rmis1bnd,ah1bnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+            read(111,*)rmis2bnd,rfin2bnd,npun2bnd
+            ah2bnd=(rfin2bnd-rmis2bnd)/dble(npun2bnd-1)
+            if(dabs(rmis2-rmis2bnd).gt.1.d-4
+     &         .or.dabs(ah2-ah2bnd).gt.1.d-4)then
+               write(6,*)'  grid in r2 for bnd non equal '
+               write(6,*)'  rmis2bnd,ah2bnd= '
+     &                    ,rmis2bnd,ah2bnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+            read(111,*)nangubnd,incbnd
+            if(nangu.ne.nangubnd.or.inc.ne.incbnd)then
+               write(6,*)' grig in angle for bnd non equal '
+               write(6,*)'  nangubnd,incbnd= ',nangubnd,incbnd
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+            if(nbnddim.gt.maxbnddim)then
+            write(6,*)'  nbnddim= ',nbnddim,'  > maxbnddim= ',maxbnddim
+               call flush(6)
+               call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+               stop
+            endif
+
+c-----> end checking grids
+
+            do ibnd=1,nbnddim
+               read(111,*)iii,iiicanp,ielecbnd(ibnd),iombnd(ibnd),iangp
+     &            ,iiir,ir1bnd(ibnd),ir2bnd(ibnd),iangbnd(ibnd)
+            enddo
+            do ibnd=1,nbnddim
+               read(110,*)bndvec(ibnd)
+            enddo
+
+            close(110)
+            close(111)
+
+           write(6,*)' building initial wave packet for iphoto= ',iphoto
+           call flush(6)
+
+            do i=1,ntotproc(idproc)
+               call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
+               iang=indangreal(iangp,idproc)
+               do ibnd=1,nbnddim
+
+                  iomini=iombnd(ibnd)
+                  iq=iom-iombnd(ibnd)
+              
+                  if(iphoto.eq.3.and.iom.eq.iomini)then                  
+                     if(iang.eq.iangbnd(ibnd)
+     &                .and.ir1.eq.ir1bnd(ibnd)
+     &                .and.ir2.eq.ir2bnd(ibnd))then
+c                  write(6,*)iang,ielec,ir1,ir2
+c     &                 ,iangbnd(ibnd),ielecbnd(ibnd),ir1bnd(ibnd)
+c     &                 ,ir2bnd(ibnd),iabs(iq)
+
+                         y123=coupling(ir,iang,ielec)
+    
+                         rpaq0(i)=rpaq0(i)+bndvec(ibnd)*y123
+                     endif
+                  endif
+               enddo ! ibnd
+            enddo  ! i
+            
+         enddo                     ! iprocbnd
+
+      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+
+      deallocate(ielecbnd,iombnd
+     &     ,ir1bnd,ir2bnd,iangbnd
+     &     ,bndvec)
+      return
+      end subroutine coup_bndgrid
+!--------------------------------------------------
+
+!=======================================================
       end module mod_photoini_01y2

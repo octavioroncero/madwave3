@@ -163,10 +163,12 @@ c             isi=(-1.d0)**(iomdi)
      &               ,"  in intervals of ",inc
          endif                     ! ifail
 
-         if(ielec.eq.ielecref.and.iom.eq.iomref)then
+         if(ielec.eq.ielecref)then
+         if(iomref.lt.0.or.iom.eq.iomref)then
          if(jref.lt.jmin)then
          write(6,*)' jref < jini for ielecref,iomref=',ielecref,iomref
          call flush(6)
+         endif
          endif
          endif
       enddo  ! iom

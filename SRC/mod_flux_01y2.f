@@ -342,13 +342,17 @@
        icanref=0
        do ican=1,ncan
           if(nelebas(ican).eq.ielecref
-     &             .and.iombas(ican).eq.iomref)icanref=ican
+     &             .and.iombas(ican).eq.iabs(iomref))icanref=ican
        enddo
        if(icanref.ge.1.and.icanref.le.ncan)then
           if(idproc.eq.0)write(6,*) '  --> reference channel is ican= '
      &                                ,icanref
           if(idproc.eq.0)write(6,*) '        for ielec ',ielecref
      &                                ,'and Omega= ',iomref
+       elseif(iomref.lt.0.and.iommax.eq.0)then
+          write(6,*)'  for iommax=0, set iomref=0 and try again'
+          call flush(6)
+          stop
        else
           write(6,*)'  icanref can not be set'
           call flush(6)
@@ -432,7 +436,7 @@
       if(idproc.eq.0)write(6,"(/,10x,'For Jtot=',i3
      &         ,' j= ',i3,' Omg= ',i3,' v=',i2,
      &     /,15x,' the closest value of l= ',i3,//
-     &      )")Jtot,jref,iomref,nvref,il0
+     &      )")Jtot,jref,iabs(iomref),nvref,il0
 
 *2)  calculating initial energy distribution
 
@@ -712,14 +716,24 @@ c      endif
                do iv=nvini,maxnv
 
                   ifail=0
-                  if(ican.eq.icanref.and.iv.eq.nvref.and.j.eq.jref)then
+                  if(iomref.ge.0)then
+                   if(ican.eq.icanref.and.iv.eq.nvref.and.j.eq.jref)then
                      if(iprod.eq.1)then
                   
                      else
                         if(iphoto.eq.0.and.ikcheb.lt.kminelastic)ifail=1
                      endif
+                   endif
+                  else
+                   if(iv.eq.nvref.and.j.eq.jref)then
+                        if(iprod.eq.1)then
+                  
+                        else
+                       if(iphoto.eq.0.and.ikcheb.lt.kminelastic)ifail=1
+                        endif
+                        
+                   endif
                   endif
- 
                   if(ifail.eq.0)then
                      zzz=dcmplx(Cvj(iv,j,ican),0.d0)
                      do ie=1,netot

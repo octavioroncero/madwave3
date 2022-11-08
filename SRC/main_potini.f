@@ -94,11 +94,12 @@ c! the partition.
 
 !     determining electric dipole transition
 
-      if(iphoto.gt.0)then
-
+      if(iphoto.gt.0.and.iphoto.le.2)then
          call pot2                ! to initialize global indexes
          call set_trans_dipole
-
+      elseif(iphoto.eq.3)then
+         call pot2                ! to initialize global indexes
+         call set_coupling        ! for electronic predissociation
       endif
       
       stop

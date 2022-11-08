@@ -161,13 +161,19 @@ c! the partition.
                               ! initial collision wave packet
          call set_colini
       
-      elseif(iphoto.eq.1.or.iphoto.eq.2)then
+      elseif(iphoto.eq.1.or.iphoto.eq.2.or.iphoto.eq.3)then
          if(iphoto.eq.1)call read_trans_dipole
          call dip_bnd
          do i=1,ntotproc(idproc)
             rpaqproc(i)=rpaq0(i)
          enddo
-      else
+!      elseif(iphoto.eq.3)then
+!         call read_coupling
+!         call coup_bndgrid
+!         do i=1,ntotproc(idproc)
+!            rpaqproc(i)=rpaq0(i)
+!         enddo
+       else
          write(6,*)' iphoto =',iphoto,' out of range'
          call flush(6)
          call MPI_BARRIER(MPI_COMM_WORLD, IERR)

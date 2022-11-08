@@ -117,25 +117,42 @@
       use mod_Hphi_01y2
       implicit none
       integer :: i,ican,icanp,ielec,iom,iang,iangp,ir,ir1,ir2
+      integer :: imaxOmg
       double precision :: r1,r2,rp,Rg,angpart,fdiatom
-      double precision :: xr2,xxx
+      double precision :: xr2,xxx,xnormOmg
       include "mpif.h"
  
       rpaqproc(:)=0.d0
       write(6,*)'   Initial wave packet in Reactants Jacobi coordinates'
-
+      if(iomref.ge.0)then
+         xnormOmg=1.d0
+         write(6,*)' initial wvp with only Omega= ',iomref
+      else
+         imaxOmg=min0(jref,iommax)
+         xnormOmg=dble(imaxOmg-iommin+1)
+         
+         write(6,*)' initial wvp with a superposition of Omega '
+         write(6,*)'     from Omega_min=',iommin
+     &            ,' to Omega_max= ',imaxOmg
+         xnormOmg=1.d0/dsqrt(xnormOmg)
+      endif
 !      write(name,"('funini.id',i2.2)")idproc
 !      open(68,file=name,status='unknown')
       do i=1,ntotproc(idproc)
          call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
          ican=ibasproc(icanp,idproc)
          iang=indangreal(iangp,idproc)
-         if(iom.eq.iomref.and.ielec.eq.ielecref)then
+         angpart=0.d0
+
+         if(ielecref.eq.ielec)then
+            if(iomref.ge.0)then
+              if(iom.eq.iomref)angpart=Djmmp(iang,jref,ielec,iom)
+            else
+              if(iom.le.jref)angpart=Djmmp(iang,jref,ielec,iom)
+            endif
             r2=rmis2+dble(ir2-1)*ah2
             r1=rmis1+dble(ir1-1)*ah1
             Rg=R2
-
-            angpart=Djmmp(iang,jref,ielec,iom)
             if(npun1.eq.1)then
                fdiatom=1.d0
             else
@@ -144,7 +161,7 @@
 
             rp=r1
             call  rgauscolini(xr2,rg,rcolini,alpha0,xk0,factor0,il0)
-            xxx=-xr2*angpart
+            xxx=-xr2*angpart*xnormOmg
             rpaqproc(i)=xxx*fdiatom*dsqrt(ah2)
 !            write(68,*)r1,r2,iang,fdiatom,xr2,angpart,iom,ielec
 !     &                  ,i,rpaqproc(i)

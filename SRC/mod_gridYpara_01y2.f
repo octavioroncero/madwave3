@@ -19,6 +19,14 @@
       real*8,parameter :: conve = 4.55633538D-6
       real*8,parameter :: eV2cm = 8065.5d0
       real*8,parameter :: hbr = convl/dsqrt(convm*conve/conve1)
+      real*8,parameter :: au2eV = 27.21113957d0
+      real*8,parameter ::  zot2au=(1.d0/conve1)*conve
+
+      real*8,parameter ::  cluz_au=137.d0
+      real*8,parameter :: epsilon0_au=0.07957747d0 
+      real*8,parameter :: Aconstant_au
+     &              = 1.d0/(3.d0*pi*(cluz_au**3)*epsilon0_au) ! = 1/(3 pi hbar^4 Epsilon_0 c^3) 
+       real*8,parameter :: CSconstant_au= 1.d0/(cluz_au*epsilon0_au)    ! = 1/(hbar^2 Epsilon_0 c) 
       
 *     public ! for input data in namelist, grid, basis
 
@@ -112,7 +120,7 @@
          close(10)
          nangu2=nangu*inc
          iomminprod=0
-         iommaxprod=Jtot
+         iommaxprod=0
          n2prod1=npun2
          n2prod0=1
          nangproj0=1
@@ -123,6 +131,7 @@
       write(6,*)'  -------------'
          open(10,file='input.dat',status='old')
          read(10,nml = inputprod)
+         if(iommaxprod.eq.0)iommaxprod=min0(Jtot,jmaxprod)
          write(6,nml = inputprod)
          call flush(6)
          close(10)
