@@ -388,7 +388,6 @@
          open(ifilevib,file=name,status='new')
       enddo
       
-      open(7,file='CIPomg.res',status='new')
       open(8,file='CIPtot.res',status='new')
       open(10,file='PJ.res',status='new')
       ifile=ifile0
@@ -408,7 +407,7 @@
          xkini2=2.d0*xmasa*(ener)/hbr/hbr
          CIPtot=0.d0
          ifile=ifile0
-         do iomref0=-jref,jref
+         do iomref0=-1,1,2
             CIPomg(iomref0)=0.d0
          enddo
          do Jt=0,Jtotmax
@@ -421,7 +420,7 @@
                ifile=ifile+1
                do j=j00,j11
                   S2mat(j)=0.d0
-                  do iomref0=-jref,jref
+                  do iomref0=-1,1,2
                      S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iomref0)
                      CIPv(iv,ielec)=CIPv(iv,ielec)
      &                             +CIP(iedif,j,iv,ielec,iomref0)
@@ -450,10 +449,6 @@
          enddo
          
          write(8,'(50(1x,e15.7))')enerdifeV,xkini2,CIPtot
-         write(7,'(50(1x,e15.7))')enerdifeV,xkini2
-     &                    ,(CIPomg(iomref0),iomref0=-jref,jref)
-
-
 
       enddo ! ienerdif 
 
