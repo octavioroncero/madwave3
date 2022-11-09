@@ -181,12 +181,7 @@
             Jtot0=Jcalc(iJ)
 
             ipar=iomref0
-!            if(iabs(iomref0).gt.0)then
-!              par=+1.d0
-!              if(iomref0.lt.0)par=-1.d0
-!            else
-!              par=(-1.d0)**Jtot0
-!            endif
+            par=dble(ipar)
             sign=(-1.d0)**Jtot0
             iommin0=0
             if(par*sign.lt.0.d0)iommin0=1
