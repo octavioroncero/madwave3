@@ -165,7 +165,11 @@
          write(6,nml = inputwrite)
          call flush(6)
          close(10)
-         
+         if(iwrt_reac_distri.eq.1)then
+            write(6,*)' iwrt_reac_distri=1 --> writing distriREAC files'
+         elseif(iwrt_reac_distri.eq.2)then
+            write(6,*)' iwrt_reac_distri=2 --> writing Cvj files'
+         endif
          
 !     radial grid integration steps (in angstroms)
          

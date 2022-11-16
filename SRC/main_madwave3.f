@@ -290,7 +290,7 @@ c! the partition.
 
          t0=MPI_Wtime()
          if(idproc == 0)then
-           if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.1)then
+           if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
                write(name,'("Cvj.",i4.4)')iloop
                open(15,file=name,status='new',form='unformatted')
            endif
@@ -325,7 +325,7 @@ c! the partition.
             call check(time,xnorm1tot,it,iloop)
 
             if(idproc == 0)then
-              if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.1)then
+              if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
                   write(15)it,Cvj
                   call flush(15)
               endif
@@ -552,7 +552,8 @@ c! the partition.
          write(name,'("S2prod.v",i2.2,".J",i3.3,".k",i5.5)')
      &              nvref,Jtot,iloop
          open(20,file=name,status='unknown')
-      else
+      endif
+      if(iwrt_reac_distri.eq.1)then
 !         write(name,'("S2mat.J",i3.3,".k",i5.5)')
 !     &              Jtot,iloop
 !     open(20,file=name,status='unknown')
@@ -650,7 +651,9 @@ c! the partition.
      &            ,(vibprod(iv)*photonorm,iv=nviniprod,nvmaxprod)
 
             endif
-         else                   ! npun1 rotdis
+         endif  ! npun.gt.1
+         if(iwrt_reac_distri.eq.1)then
+
 
 !            write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
 !     &             ,S2reac*photonorm
