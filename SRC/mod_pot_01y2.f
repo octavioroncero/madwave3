@@ -496,13 +496,16 @@
       include "mpif.h"
       double precision ::  vang(npun1,nangu),vangtot(npun1,nangu)
       integer :: ifile,ie,je,jr2,ir1,ir2,iang,iang_proc,ir,nnn,ierr
-      double precision :: r1,r2
+      double precision :: r1,r2,ctet,angulo
 
       ifile=10
       do ie=1,nelec
       do je=ie,nelec
-         if(idproc.eq.0)then
+         if(idproc.eq.0.and.npun1.gt.1)then
             write(name,"('potr1r2.e',i1,'.'i1)")ie,je
+            open(ifile,file=name,status='unknown')
+         elseif(idproc.eq.0.and.npun1.eq.1)then
+            write(name,"('potr2gam.e',i1,'.'i1)")ie,je
             open(ifile,file=name,status='unknown')
          endif
 
@@ -531,7 +534,7 @@
             call MPI_REDUCE(vang,vangtot,nnn,MPI_REAL8,MPI_SUM
      &                             ,0,MPI_COMM_WORLD,ierr)
 
-            if(idproc.eq.0)then
+            if(idproc.eq.0.and.npun1.gt.1)then
                do ir1=1,npun1,n1plot
                   r1=rmis1+dble(ir1-1)*ah1
 !                  if(r1.le.absr1)then
@@ -546,8 +549,27 @@
                enddo
 
                write(ifile,'()')
+            elseif(idproc.eq.0.and.npun1.eq.1)then
+               do ir1=1,npun1,n1plot
+                  r1=rmis1+dble(ir1-1)*ah1
+!                  if(r1.le.absr1)then
+                     do iang=1,nangu
+                        if(dabs(vangtot(ir1,iang)).lt.1.d-90)then
+                           vangtot(ir1,iang)=0.d0
+                        endif
+                     enddo
+                     do iang=1,nangu,nangplot
+                        ctet=cgamma(iang)
+                        angulo=dacos(ctet)*180.d0/pi
+                     write(ifile,'(500(1x,e15.7))')r2,angulo
+     &                       ,(vangtot(ir1,iang))
+                     enddo
+!                  endif
+               enddo
 
-            endif  ! idproc==0
+               write(ifile,'()')
+
+            endif  ! idproc==0, npun1>1 or 1
 
 !         endif ! r2.le.r2abs
          enddo ! ir2
