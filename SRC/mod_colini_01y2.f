@@ -119,7 +119,7 @@
       integer :: i,ican,icanp,ielec,iom,iang,iangp,ir,ir1,ir2
       integer :: imaxOmg
       double precision :: r1,r2,rp,Rg,angpart,fdiatom
-      double precision :: xr2,xxx,xnormOmg
+      double precision :: xr2,xxx,xnormOmg,sOmegaSign
       include "mpif.h"
  
       rpaqproc(:)=0.d0
@@ -133,8 +133,9 @@
          
          write(6,*)' initial wvp with a superposition of Omega '
          write(6,*)'     from Omega_min=',iommin
-     &            ,' to Omega_max= ',imaxOmg
-         xnormOmg=1.d0/dsqrt(xnormOmg)
+     &        ,' to Omega_max= ',imaxOmg
+         write(6,*)'  approx. norm = ',xnormOmg
+         xnormOmg=1.d0  !  /dsqrt(xnormOmg)
       endif
 !      write(name,"('funini.id',i2.2)")idproc
 !      open(68,file=name,status='unknown')
@@ -148,7 +149,10 @@
             if(iomref.ge.0)then
               if(iom.eq.iomref)angpart=Djmmp(iang,jref,ielec,iom)
             else
-              if(iom.le.jref)angpart=Djmmp(iang,jref,ielec,iom)
+               if(iom.le.jref)then
+                  sOmegaSign=(-1.d0)**dble(iom)
+                  angpart=sOmegaSign*Djmmp(iang,jref,ielec,iom)
+               endif
             endif
             r2=rmis2+dble(ir2-1)*ah2
             r1=rmis1+dble(ir1-1)*ah1

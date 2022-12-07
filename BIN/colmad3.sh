@@ -42,10 +42,11 @@ rm distri.out distriREAC.out
 gfortran  -g -C -o distri.out distriwvp.f $dir/liboctdyn.f
 gfortran  -O3 -o distriREAC.out $dir2/distriREACwvp.f $dir/liboctdyn.f
 
-######################  crp.out & cip.out
-rm cip.out crp.out
-gfortran -g -C -O3 -o crp.out $dir2/CRP-fast.f $dir/liboctdyn.f
+######################  crp.out & cip.out & cipave.out
+rm cip.out crp.out cipave.out
+gfortran  -O3 -o crp.out $dir2/CRP-fast.f $dir/liboctdyn.f
 gfortran  -O3 -o cip.out $dir2/CIP-fast.f $dir/liboctdyn.f
+gfortran  -O3 -o cipave.out $dir2/CIPaverage-fast.f $dir/liboctdyn.f
 
 ######################  rate.out & rates2s.out
 rm rate.out rates2s.out

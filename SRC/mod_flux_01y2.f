@@ -448,7 +448,8 @@
       do ie=1,netot
          etotS2(ie)=etotmin+dble(ie-1)*estep
          ekinini=etotS2(ie)
-         if(ekinini.gt.0.d0)then
+         paqini=0.d0
+         if(ekinini.gt.0.d0.and.ekinini.gt.erot)then
             pini=dsqrt(ekinini*xmasa0*2.d0/hbr/hbr)
             zfft=dcmplx(0.d0,0.d0)
             do ir2=1,npunt
@@ -459,13 +460,16 @@
                if(dabs(f).gt.1.d-20)then
                   zexpo=dcmplx(-g,f)
                   zfft=zfft+dcmplx(rgaussr(ir2),0.d0)*zexpo
+!                  if(ie.eq.1)then
+!                     write(269,*)r,arg,g,f,erot,etotS2(ie)
+!                  endif
                endif
             enddo
             zfft=zfft*ahgauss/2.d0/pi
             paqini=dreal(zfft*dconjg(zfft))
          else
             pini=0.d0
-            paqini=1.d0
+            paqini=0.d0
          endif
          apaqini(ie)=paqini
 ** reactants
@@ -478,7 +482,7 @@
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-15)then
+            if(paqini.lt.1.d-15)then  !if(paqini.lt.1.d-15)then
                S2factor(ie,iv,j,iele)=0.d0
             else
                S2factor(ie,iv,j,iele)=
@@ -491,8 +495,9 @@
 
 ** total
          xnorm=xnorm+paqini
-         if(paqini.lt.1.d-15)then
+         if(paqini.lt.1.d-10)then !if(paqini.lt.1.d-15)then
             reacfct(ie)=0.d0
+            paqini=0.d0
          else
             reacfct(ie)=hbr*hbr*pini/paqini/xmasa0/xm1reac/4.d0/pi/pi
          endif

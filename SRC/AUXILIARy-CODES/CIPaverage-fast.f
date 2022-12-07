@@ -186,10 +186,6 @@
             iommin0=0
             if(par*sign.lt.0.d0)iommin0=1
 
-            xnorm=1.d0
-            imaxOmg=min0(jref,Jtot0)
-            xnormOmg=dble(imaxOmg-iommin0+1)
-            
             if(ipar.eq.-1.and.Jtot0.eq.0)then
                
             else !  if(Jtot0.ge.iabs(iomref0))then
@@ -215,8 +211,13 @@
                do ie=1,nener
                   read(5,*)es2(ie,iJ),(S2J(ie,iJ,j),j=j00,j11)
                   do j=j00,j11
+                     imaxOmg=min0(jref,Jtot0)
+                     xnormOmg=1.d0
+                     if(imaxOmg.gt.iommin)then
+                        xnormOmg=dble(imaxOmg-iommin0+1)
+                     endif         
 !     if(ieee_is_nan(S2J(ie,iJ,j)))S2J(ie,iJ,j)=0.d0
-                     S2J(ie,iJ,j)=S2J(ie,iJ,j)*xnormOmg
+                     S2J(ie,iJ,j)=S2J(ie,iJ,j)   !*xnormOmg
                      
                   enddo
                   es2(ie,iJ)=es2(ie,iJ)!   /8065.5d0
