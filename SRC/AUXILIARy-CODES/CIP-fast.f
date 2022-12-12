@@ -46,6 +46,7 @@
       real*8,allocatable :: xx(:),f(:,:)
       integer,allocatable :: Jcalc(:)
       real*8, allocatable :: pm(:),BeJ(:)
+      real*8, allocatable :: ediat(:,:,:)
       
 **>> constants
 
@@ -60,7 +61,8 @@
       nelec=nelecmax
       ceVcm=1.23984245d-4
       au2eV=27.2113957d0
-
+      eV2cm = 8065.5d0
+      
 !     reading data
          
          open(10,file='input.dat',status='old')
@@ -140,10 +142,28 @@
      &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,-jref:jref)
      &     ,f(nener,2),xx(nener)
      &     ,Jcalc(ncalc),pm(0:ndim),BeJ(0:Jtotmax)
+     &        ,ediat(nv0:nv1,j00:j11,nelecmax)
      &     ,stat=ierror)
 
-      PJ(:,:)=0.d0
-**>> J at which WP calculations have been performed
+       PJ(:,:)=0.d0
+*     *> reading diatomic energies of reactants
+
+      open(10,file='../func/bcwf',status='old')
+         do ielec=1,nelecmax
+         do j=j00,j11
+            read(10,*)iielec,jj,noBCstates
+            do iv=nv0,min0(nv1,noBCstates)
+               read(10,*)iiv,ediat(iv,j,ielec)
+               ediat(iv,j,ielec)=ediat(iv,j,ielec)*(conve1*eV2cm)
+               do ir1=1,npun1
+                  read(10,*)
+               enddo
+            enddo
+         enddo
+         enddo
+      close(10)
+
+*     *>> J at which WP calculations have been performed
 !**   >>  Reading calculated J
       
       open(10,file="CalculatedJ.dat",status="old",err=999)
@@ -223,7 +243,8 @@
 
                write(6,*)iomref0,Jtot0,iv,ielec,name
                call flush(6)
-               open(5,file=name,status='old',err=1)
+!               open(5,file=name,status='old',err=1)
+               open(5,file=name,status='old')
 
                if(iomref0.eq.0)then
                   write(name,'("../Omg",i1,"/J",i3.3
@@ -317,7 +338,7 @@
                          SJ1(iedif,j)=S2J(nener,iJ,j)
                        elseif(eshift.lt.es2(1,iJ))then
                          SJ1(iedif,j)=0.d0
-                       else
+                       elseif(enerdifeV.gt.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ1(iedif,j)=spl
                        endif
@@ -341,7 +362,7 @@
                           SJ2(iedif,j)=S2J(nener,iJ+1,j)
                        elseif(eshift.lt.es2(1,iJ+1))then
                           SJ2(iedif,j)=0.d0
-                       else
+                       elseif(enerdifeV.gt.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ2(iedif,j)=spl
                        endif
@@ -372,7 +393,7 @@
                           SJ1(iedif,j)=S2J(nener,nJcalc,j)
                        elseif(eshift.lt.es2(1,nJcalc))then
                           SJ1(iedif,j)=0.d0
-                       else
+                       elseif(enerdifeV.gt.ediat(iv,j,ielec))then
                        call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ1(iedif,j)=spl
                        endif
