@@ -220,10 +220,14 @@ c! the partition.
                stop
             endif
 
+            write(6,*)' --- Opening files= ',filegrid,filebnd
+            call flush(6)
             open(111,file=filegrid,status='old')
 
             open(110,file=filebnd,status='old')
-
+            write(6,*)' --- files opened= '
+            call flush(6)
+ 
             read(110,*)ivX,energy_fin_eV
          
             read(111,*)nbnddim

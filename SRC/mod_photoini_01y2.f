@@ -376,7 +376,7 @@ c            write(ifileauto,*)0,1.d0
       character*50 :: filegrid,filebnd
       integer, allocatable:: ielecbnd(:),iombnd(:)
      &                     ,ir1bnd(:),ir2bnd(:),iangbnd(:)
-      real*8,allocatable :: bndvec(:)
+      real*8,allocatable :: bndvec(:,:,:,:,:)
  
       integer :: ielecbndmin,iombndmin,ibnd,ijk,iiicanp,iii
       integer :: iiir,iangp,ierror,i,iang,icanp,ielec,ierr
@@ -385,11 +385,12 @@ c            write(ifileauto,*)0,1.d0
       integer :: ivX,it,it0,indt,iloop,nnn
       real*8 :: rmis1bnd,rfin1bnd,rmis2bnd,rfin2bnd
       real*8 :: ah1bnd,ah2bnd,x123,xnorm,xnormtot,y123,ssign
-      real*8 :: yyy,xxx,coef,coef2,xx,yy
+      real*8 :: yyy,xxx,coef,coef2,xx,yy,xnormbnd
+      integer :: nr1bnd,nr2bnd,iommaxbnd,nelecmaxbnd,nangumin
+     &          ,iomminbnd
 
       allocate(ielecbnd(maxbnddim),iombnd(maxbnddim)
      &     ,ir1bnd(maxbnddim),ir2bnd(maxbnddim),iangbnd(maxbnddim)
-     &     ,bndvec(maxbnddim)
      &     , stat=ierror)
 
 * reading bnd 
@@ -400,6 +401,7 @@ c            write(ifileauto,*)0,1.d0
           write(6,*)'           in the same grid!!!!!'
           write(6,*)' '
 
+          xnormbnd=0.d0
 **>> reading grid of bnd calculation for Jtotini
 *    to adapt it to the dissociation dynamics with Jtot and nelecmax
 
@@ -485,12 +487,34 @@ c            write(ifileauto,*)0,1.d0
 
 c-----> end checking grids
 
+            nr1bnd=0
+            nr2bnd=0
+            nangumin=0
+            nangubnd=0
+            iommaxbnd=0
+            iomminbnd=0
+            nelecmaxbnd=0
             do ibnd=1,nbnddim
                read(111,*)iii,iiicanp,ielecbnd(ibnd),iombnd(ibnd),iangp
-     &            ,iiir,ir1bnd(ibnd),ir2bnd(ibnd),iangbnd(ibnd)
+     &              ,iiir,ir1bnd(ibnd),ir2bnd(ibnd),iangbnd(ibnd)
+               if(ir1bnd(ibnd).gt. nr1bnd) nr1bnd=ir1bnd(ibnd)
+               if(ir2bnd(ibnd).gt. nr2bnd) nr2bnd=ir2bnd(ibnd)
+               if(iangbnd(ibnd).gt. nangubnd) nangubnd=iangbnd(ibnd)
+               if(iangbnd(ibnd).lt. nangumin) nangumin=iangbnd(ibnd)
+               if(iombnd(ibnd).gt.iommaxbnd)iommaxbnd=iombnd(ibnd)
+               if(iombnd(ibnd).lt.iomminbnd)iomminbnd=iombnd(ibnd)
+               if(ielecbnd(ibnd).gt.nelecmaxbnd)then
+                  nelecmaxbnd=ielecbnd(ibnd)
+               endif
             enddo
+            if(iangbnd(ibnd).gt. nangubnd) nangubnd=iangbnd(ibnd)
+            allocate(bndvec(nr1bnd,nr2bnd,nangumin:nangubnd
+     &                        ,iomminbnd:iommaxbnd,nelecmaxbnd)
+     &           , stat=ierror)
+            bndvec(:,:,:,:,:)=0.d0
             do ibnd=1,nbnddim
-               read(110,*)bndvec(ibnd)
+               read(110,*)bndvec(ir1bnd(ibnd),ir2bnd(ibnd),iangbnd(ibnd)
+     &                 ,iombnd(ibnd),ielecbnd(ibnd))
             enddo
 
             close(110)
@@ -502,43 +526,42 @@ c-----> end checking grids
             do i=1,ntotproc(idproc)
                call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
                iang=indangreal(iangp,idproc)
-               do ibnd=1,nbnddim
+               if(ir1.le.nr1bnd.and.ir2.le.nr2bnd
+     &              .and.iang.le.nangubnd
+     &              .and.ielec.le.nelecmaxbnd)then
+                  if(iphoto.eq.2)then
 
-                  iomini=iombnd(ibnd)
-                  iq=iom-iombnd(ibnd)
-              
-                  if(iphoto.eq.2)then                  
-                     if(iang.eq.iangbnd(ibnd).and.iom.eq.iomini
-     &                  .and.ielec.eq.ielecbnd(ibnd)
-     &                  .and.ir1.eq.ir1bnd(ibnd)
-     &                  .and.ir2.eq.ir2bnd(ibnd))then
-  
-                         rpaq0(i)=bndvec(ibnd)
-                     endif                  
+                     if(iom.le.iommaxbnd)then
+                        xxx=bndvec(ir1,ir2,iang,iom,ielec)
+                        rpaq0(i)=bndvec(ir1,ir2,iang,iom,ielec)
+                        xnormbnd=xnormbnd+xxx*xxx
+                    endif
                   elseif(iphoto.eq.1)then
-                     if(iang.eq.iangbnd(ibnd).and.iabs(iq).le.1
-     &                .and.ielec.eq.ielecbnd(ibnd)
-     &                .and.ir1.eq.ir1bnd(ibnd)
-     &                .and.ir2.eq.ir2bnd(ibnd))then
-c                  write(6,*)iang,ielec,ir1,ir2
-c     &                 ,iangbnd(ibnd),ielecbnd(ibnd),ir1bnd(ibnd)
-c     &                 ,ir2bnd(ibnd),iabs(iq)
-
+                     do iomini=0,iommaxbnd
+                        iq=iom-iomini
+                        if(iabs(iq).le.1)then
                          y123=dipol(ir,iang,ielec,iq)
                          x123=factresj(iomini,iq,iom)
-                         rpaq0(i)=rpaq0(i)+bndvec(ibnd)*y123*x123
-                     endif
+                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
+                         rpaq0(i)=rpaq0(i)+xxx*y123*x123
+                         xnormbnd=xnormbnd+xxx*xxx
+
+                        endif
+                     enddo
                   endif
-               enddo ! ibnd
+
+               endif  ! ir1,ir2,ielec
             enddo  ! i
-            
+
+            deallocate(bndvec)
          enddo                     ! iprocbnd
 
-      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+         call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+
+         write(6,*)' In dip_bndgrid norm bound state= ',xnormbnd
 
       deallocate(ielecbnd,iombnd
-     &     ,ir1bnd,ir2bnd,iangbnd
-     &     ,bndvec)
+     &     ,ir1bnd,ir2bnd,iangbnd)
       return
       end subroutine dip_bndgrid
 !--------------------------------------------------

@@ -4,7 +4,9 @@
 
       character*50 name,viejo,posicion,system,frpini,fRgini,fcoefini
 *
-* calculates the Cumulative Inelastic Probabilities (CIP) to calculate rates
+*     calculates the Cumulative Inelastic Probabilities (CIP)
+*     for a given inoitial Omgref, summing in Jtot and parity
+*     To sum over Omgref use code CIPtot-fromOmgRef
 *     input in eV of translational energy: has to be changed..
 *     output energies are in eV traslational energy
 *
@@ -38,7 +40,7 @@
 *********************************************************
 * preparing dimensions depending on Jacobi coordinates used in propagation (iprod=1 -products- or iprod=2 reactants) 
 
-      real*8,allocatable,dimension(:,:,:,:,:,:) :: CIP
+      real*8,allocatable,dimension(:,:,:,:,:) :: CIP
       real*8,allocatable,dimension(:,:,:) :: S2J
       real*8,allocatable,dimension(:,:) :: ES2,SJ1,SJ2,PJ
       real*8,allocatable,dimension(:) :: S2mat,CIPomg
@@ -46,6 +48,7 @@
       real*8,allocatable :: xx(:),f(:,:)
       integer,allocatable :: Jcalc(:)
       real*8, allocatable :: pm(:),BeJ(:)
+      real*8, allocatable :: ediat(:,:,:)
       
 **>> constants
 
@@ -60,7 +63,8 @@
       nelec=nelecmax
       ceVcm=1.23984245d-4
       au2eV=27.2113957d0
-
+      eV2cm = 8065.5d0
+      
 !     reading data
          
          open(10,file='input.dat',status='old')
@@ -137,13 +141,44 @@
      &        ,S2mat(j00:j11)
      &        ,CIPv(nv0:nv1,nelecmax)
      &        ,CIPomg(-jref:jref)
-     &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,iom0:iom1,-jref:jref)
+     &  ,CIP(nenerdif,j00:j11,nv0:nv1,nelecmax,-jref:jref)
      &     ,f(nener,2),xx(nener)
      &     ,Jcalc(ncalc),pm(0:ndim),BeJ(0:Jtotmax)
+     &        ,ediat(nv0:nv1,j00:j11,nelecmax)
      &     ,stat=ierror)
 
-      PJ(:,:)=0.d0
-**>> J at which WP calculations have been performed
+       PJ(:,:)=0.d0
+*     *> reading diatomic energies of reactants
+
+       open(10,file='../func/bcwf',status='old')
+       write(6,*)' asymptotic energies of reactants' 
+         do ielec=1,nelecmax
+         do j=j00,j11
+            read(10,*)iielec,jj,noBCstates
+            do iv=nv0,min0(nv1,noBCstates)
+               read(10,*)iiv,ediat(iv,j,ielec)
+               ediat(iv,j,ielec)=ediat(iv,j,ielec)*(conve1*eV2cm)
+               do ir1=1,npun1
+                  read(10,*)
+               enddo
+            enddo
+         enddo
+         enddo
+         close(10)
+         write(6,*)' Substracting the energy of reference energy: '
+     &            ,ediat(ivref,jref,ielecref)/(conve1*eV2cm)
+         do ielec=1,nelecmax
+         do j=j00,j11
+            do iv=nv0,min0(nv1,noBCstates)
+               ediat(iv,j,ielec)=ediat(iv,j,ielec)
+     &                          -ediat(ivref,jref,ielecref)
+               write(6,*)' ielec,j,v,E = ',ielec,j,iv
+     &                            ,ediat(iv,j,ielec)/(conve1*eV2cm)
+            enddo
+         enddo
+         enddo
+
+*     *>> J at which WP calculations have been performed
 !**   >>  Reading calculated J
       
       open(10,file="CalculatedJ.dat",status="old",err=999)
@@ -162,15 +197,15 @@
       write(6,*)
       
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!   big Loop in iomref
+!!   Fix iomref: only loop in parity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       write(6,*)'enermineV,estep=',enermineV,estep
 
-      CIP(:,:,:,:,:,:)=0.d0
+      CIP(:,:,:,:,:)=0.d0
       PJ(:,:)=0.d0
-      do iomref0=-jref,jref
-      do iom=iom0,iom1
+      do ipar=-1,1,2
+      iomref0=iomref*ipar
       do ielec=1,nelecmax
       do iv=nv0,nv1
 
@@ -187,75 +222,58 @@
             sign=(-1.d0)**Jtot0
             iommin0=0
             if(par*sign.lt.0.d0)iommin0=1
-            if(iom.eq.0.or.iomref.eq.0)iommin0=0
-            if(Jtot0.ge.iabs(iomref0).and.Jtot0.ge.iom
-     &        .and.iom.ge.iommin0)then
+            if(Jtot0.ge.iabs(iomref0))then
 
                if(iomref0.eq.0)then
-                  write(name,'("../Omg",i1,"/J",i3.3 
+                  write(name,'("../Omg",i2.2,"/J",i3.3 
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                           iabs(iomref0),Jtot0,iv,iom,ielec
-               elseif(iom.eq.0)then
-
-                  if(mod(Jtot0,2).eq.0)then
-                     write(name,'("../Omg",i1,"/p/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
-                  else
-                     write(name,'("../Omg",i1,"/m/J",i3.3
-     &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
-                  endif
-
+     &                 ,".e",i1.1)')
+     &                           iabs(iomref0),Jtot0,iv,ielec
                elseif(iomref0.lt.0)then
                   if(mod(Jtot0,2).eq.0)then
-                     write(name,'("../Omg",i1,"/m/J",i3.3
+                     write(name,'("../Omg",i2.2,"/m/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+     &                 ,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,ielec
                   else
-                     write(name,'("../Omg",i1,"/p/J",i3.3
+                     write(name,'("../Omg",i2.2,"/p/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+     &                 ,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,ielec
 
                   endif
                elseif(iomref0.gt.0)then
                   if(mod(Jtot0,2).eq.0)then
-                     write(name,'("../Omg",i1,"/p/J",i3.3
+                     write(name,'("../Omg",i2.2,"/p/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+     &                 ,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,ielec
                   else
-                     write(name,'("../Omg",i1,"/m/J",i3.3
+                     write(name,'("../Omg",i2.2,"/m/J",i3.3
      &                 ,"/distriS2reac.v",i2.2
-     &                 ,".Omg",i2.2,".e",i1.1)')
-     &                    iabs(iomref0),Jtot0,iv,iom,ielec
+     &                 ,".e",i1.1)')
+     &                    iabs(iomref0),Jtot0,iv,ielec
 
                   endif
                endif
 
-               write(6,*)iomref0,Jtot0,iom,iv,ielec,name
+               write(6,*)iomref0,Jtot0,iv,ielec,name
                call flush(6)
-               open(5,file=name,status='old',err=1)
+!               open(5,file=name,status='old',err=1)
+               open(5,file=name,status='old')
 
                if(iomref0.eq.0)then
-                  write(name,'("../Omg",i1,"/J",i3.3
+                  write(name,'("../Omg",i2.2,"/J",i3.3
      &                 ,"/distriS2reac.elec",i2.2)')iomref0,Jtot0,ielec
                elseif(iomref0.lt.0)then
-                  write(name,'("../Omg",i1,"/m/J",i3.3
+                  write(name,'("../Omg",i2.2,"/m/J",i3.3
      &                 ,"/distriS2reac.elec",i2.2)')
      &                    iabs(iomref0),Jtot0,ielec
                elseif(iomref0.gt.0)then
-                  write(name,'("../Omg",i1,"/p/J",i3.3
+                  write(name,'("../Omg",i2.2,"/p/J",i3.3
      &                 ,"/distriS2reac.elec",i2.2)')iomref0,Jtot0,ielec
                endif
                open(4,file=name,status='old')
-
-
 
                do j=j00,j11
                do ie=1,nener
@@ -272,12 +290,12 @@
                   read(4,*)xyz,S2tot
 !                  if(ieee_is_nan(S2tot))S2tot=0.d0
 !!correcting too high reaction probabilities at low energies
-                  if(S2tot.gt.S2max)then
-                     fac=S2max/S2tot
-                     do j=j00,j11
-                        S2J(ie,iJ,j)=S2J(ie,iJ,j)*fac
-                     enddo
-                  endif
+!                  if(S2tot.gt.S2max)then
+!                     fac=S2max/S2tot
+!                     do j=j00,j11
+!                        S2J(ie,iJ,j)=S2J(ie,iJ,j)*fac
+!                     enddo
+!                  endif
 !!end-correction
 
                enddo  ! ie
@@ -294,7 +312,7 @@
 **** state resolved opacity and integral cross section
 
          do j=j00,j11
-            minJtot=max0(iabs(iomref0),iom)
+            minJtot=iabs(iomref0)
            
             do Jtot0=minJtot,Jtotmax
                if(iabs(iomref0).gt.0)then
@@ -305,7 +323,6 @@
                endif
                sign=(-1.d0)**Jtot0
                ifail=0
-               if(iom.eq.0.and.sign*par.lt.0.d0)ifail=1
                if(ifail.eq.0)then
 
                   S2mat(j)=0.d0
@@ -335,7 +352,7 @@
                          SJ1(iedif,j)=S2J(nener,iJ,j)
                        elseif(eshift.lt.es2(1,iJ))then
                          SJ1(iedif,j)=0.d0
-                       else
+                       elseif(eshift.ge.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ1(iedif,j)=spl
                        endif
@@ -359,7 +376,7 @@
                           SJ2(iedif,j)=S2J(nener,iJ+1,j)
                        elseif(eshift.lt.es2(1,iJ+1))then
                           SJ2(iedif,j)=0.d0
-                       else
+                       elseif(eshift.ge.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ2(iedif,j)=spl
                        endif
@@ -390,7 +407,7 @@
                           SJ1(iedif,j)=S2J(nener,nJcalc,j)
                        elseif(eshift.lt.es2(1,nJcalc))then
                           SJ1(iedif,j)=0.d0
-                       else
+                       elseif(eshift.ge.ediat(iv,j,ielec))then
                        call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ1(iedif,j)=spl
                        endif
@@ -417,12 +434,15 @@
                      endif          
                      if(S2mat(j).lt.0.d0)S2mat(j)=0.d0
 
-                     CIP(iedif,j,iv,ielec,iom,iomref0)=
-     &                      CIP(iedif,j,iv,ielec,iom,iomref0)
+                     CIP(iedif,j,iv,ielec,iomref0)=
+     &                      CIP(iedif,j,iv,ielec,iomref0)
      &                       +S2mat(j)*dble(2*Jtot0+1)
 
-                     PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
-                    
+                     if(j.eq.jref.and.iv.eq.ivref
+     &                      .and.ielec.eq.ielecref)then
+                     else
+                        PJ(iedif,Jtot0)=PJ(iedif,Jtot0)+S2mat(j)
+                     endif
                   enddo ! iedif
     
                endif  ! ifail=0
@@ -432,30 +452,20 @@
 
       enddo  ! iv
       enddo  ! ielec
-      enddo  ! iom
       enddo  ! iomref0
 
 
 * writting files
 
       ifile0=100
-      ifilevib0=11
-
-      ifilevib=ifilevib0
-      do ielec=1,nelecmax
-         ifilevib=ifilevib+1
-         write(name,'("CIPvib.elec",i2.2)')ielec
-         open(ifilevib,file=name,status='new')
-      enddo
-      
-      open(7,file='CIPomg.res',status='new')
-      open(8,file='CIPtot.res',status='new')
+     
       open(10,file='PJ.res',status='new')
       ifile=ifile0
       do iv=nv0,nv1
       do ielec=1,nelecmax
          ifile=ifile+1
-         write(name,'("CIP.vf",i2.2,".ef",i1.1)')iv,ielec
+         write(name,'("CIP.Omgref",i2.2".vf",i2.2,".ef",i1.1)')
+     &                               iomref,iv,ielec
          open(ifile,file=name,status='unknown')
       enddo
       enddo
@@ -482,14 +492,12 @@
                do j=j00,j11
                   S2mat(j)=0.d0
                   do iomref0=-jref,jref
-                  do iom=iom0,iom1
-                     S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iom,iomref0)
+                     S2mat(j)=S2mat(j)+CIP(iedif,j,iv,ielec,iomref0)
                      CIPv(iv,ielec)=CIPv(iv,ielec)
-     &                             +CIP(iedif,j,iv,ielec,iom,iomref0)
+     &                             +CIP(iedif,j,iv,ielec,iomref0)
                      CIPomg(iomref0)=CIPomg(iomref0)
-     &                       +CIP(iedif,j,iv,ielec,iom,iomref0)
-                     CIPtot=CIPtot+CIP(iedif,j,iv,ielec,iom,iomref0)
-                  enddo
+     &                       +CIP(iedif,j,iv,ielec,iomref0)
+                     CIPtot=CIPtot+CIP(iedif,j,iv,ielec,iomref0)
                   enddo
                   if(S2mat(j).lt.1.d-30)S2mat(j)=0.d0
                enddo  ! j
@@ -503,19 +511,6 @@
             if(CIPv(iv,ielec).lt.1.d-30)CIPv(iv,ielec)=0.d0
          enddo
          enddo
-
-         ifilevib=ifilevib0
-         do ielec=1,nelecmax
-            ifilevib=ifilevib+1
-            write(ifilevib,'(50(1x,e15.7))')enerdifeV,xkini2
-     &           ,(CIPv(iv,ielec),iv=nv0,nv1)
-         enddo
-         
-         write(8,'(50(1x,e15.7))')enerdifeV,xkini2,CIPtot
-         write(7,'(50(1x,e15.7))')enerdifeV,xkini2
-     &                    ,(CIPomg(iomref0),iomref0=-jref,jref)
-
-
 
       enddo ! ienerdif 
 

@@ -298,7 +298,7 @@
 **** state resolved opacity and integral cross section
 
          do j=j00,j11
-            minJtot=max0(iabs(iomref0),iom)
+            minJtot=iabs(iomref0)
            
             do Jtot0=minJtot,Jtotmax
                if(iabs(iomref0).gt.0)then
@@ -338,7 +338,7 @@
                          SJ1(iedif,j)=S2J(nener,iJ,j)
                        elseif(eshift.lt.es2(1,iJ))then
                          SJ1(iedif,j)=0.d0
-                       elseif(enerdifeV.gt.ediat(iv,j,ielec))then
+                       elseif(eshift.gt.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ1(iedif,j)=spl
                        endif
@@ -362,7 +362,7 @@
                           SJ2(iedif,j)=S2J(nener,iJ+1,j)
                        elseif(eshift.lt.es2(1,iJ+1))then
                           SJ2(iedif,j)=0.d0
-                       elseif(enerdifeV.gt.ediat(iv,j,ielec))then
+                       elseif(eshift.gt.ediat(iv,j,ielec))then
                       call splinqq(f,xx,iold,nener,eshift,nener,spl)
                       SJ2(iedif,j)=spl
                        endif

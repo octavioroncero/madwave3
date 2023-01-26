@@ -38,15 +38,14 @@ mpif77 -O3  -o bndgrid.out  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
 
 ######################  distri.out & distriREAC.out
 rm distri.out distriREAC.out
-#gfortran  -g -C -o distri.out $dir2/distriwvp.f $dir/liboctdyn.f
-gfortran  -g -C -o distri.out distriwvp.f $dir/liboctdyn.f
+gfortran  -g -C -o distri.out $dir2/distriwvp.f $dir/liboctdyn.f
 gfortran  -O3 -o distriREAC.out $dir2/distriREACwvp.f $dir/liboctdyn.f
 
-######################  crp.out & cip.out & cipave.out
-rm cip.out crp.out cipave.out
+######################  crp.out & cip.out & cipref.out
+rm cip.out crp.out cipref.out
 gfortran  -O3 -o crp.out $dir2/CRP-fast.f $dir/liboctdyn.f
 gfortran  -O3 -o cip.out $dir2/CIP-fast.f $dir/liboctdyn.f
-gfortran  -O3 -o cipave.out $dir2/CIPaverage-fast.f $dir/liboctdyn.f
+gfortran  -O3 -o cipref.out $dir2/CIP-OmgRef.f $dir/liboctdyn.f
 
 ######################  rate.out & rates2s.out
 rm rate.out rates2s.out
@@ -61,7 +60,12 @@ mpif77  -O3 -o sigma.out $dir2/sigmaFromS2prod.f $dir/liboctdyn.f
 rm cheby-spectra.out
 gfortran  -O3 -o cheby-spectra.out $dir4/cheby-spectra.f 
 
-echo "11 executable codes: mad3.out bndgrid.out distri.out  distriREAC.out  crp.out  cip.out inelastic-rates2s.out rate.out rates2s.out sigma.out  cheby-spectra.out cheby-spectra.out"
+######################  Einstein.out
+rm Einstein.out
+mpif77 -o Einstein.out -O3  mod_gridYpara_01y2.o mod_baseYfunciones_01y2.o mod_pot_01y2.o mod_Hphi_01y2.o mod_photoini_01y2.o $dir4/Acoefficient-bound-bound.f $dir/liboctdyn.f $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f -lfftw3
+
+
+echo "13 executable codes: mad3.out bndgrid.out Einstein.out distri.out  distriREAC.out  crp.out  cip.out cipref.out inelastic-rates2s.out rate.out rates2s.out sigma.out  cheby-spectra.out"
 
 echo "removing *.o and *.mod"
 rm -f *.o *.mod
