@@ -96,7 +96,9 @@ c! the partition.
 
       if(iphoto.gt.0.and.iphoto.le.2)then
          call pot2                ! to initialize global indexes
-         call set_trans_dipole
+         if(iphoto.eq.1)then
+            call set_trans_dipole
+         endif
       elseif(iphoto.eq.3)then
          call pot2                ! to initialize global indexes
          call set_coupling        ! for electronic predissociation

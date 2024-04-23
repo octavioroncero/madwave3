@@ -287,17 +287,21 @@
 
       xnorm=0.d0
       xnormOmgProc(:)=0.d0
+      xnormtot=0.d0
       do i=1,ntotproc(idproc)
          call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
          xnorm=xnorm+rpaq0(i)*rpaq0(i)
          xnormOmgProc(iom)=xnormOmgProc(iom)+rpaq0(i)*rpaq0(i)
       enddo
-      write(6,*)' xnorm partial = ',xnorm
+      write(6,*)' dip_bnd: xnorm partial = ',xnorm,' in proc=',idproc
+      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+
 
       call MPI_REDUCE(xnorm,xnormtot,1,MPI_REAL8,MPI_SUM
      &                             ,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(xnormtot,1,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
 
+      write(6,*)' dip_bnd: xnorm total = ',xnormtot,'  renormalizing'
       if(xnormtot.lt.1.d-15)then
          write(6,*)' norm of initial wvp too low= ',xnormtot
          call flush(6)
@@ -385,7 +389,7 @@ c            write(ifileauto,*)0,1.d0
       integer :: ivX,it,it0,indt,iloop,nnn
       real*8 :: rmis1bnd,rfin1bnd,rmis2bnd,rfin2bnd
       real*8 :: ah1bnd,ah2bnd,x123,xnorm,xnormtot,y123,ssign
-      real*8 :: yyy,xxx,coef,coef2,xx,yy,xnormbnd
+      real*8 :: yyy,xxx,coef,coef2,xx,yy,xnormbnd,xnormbnd_tot
       integer :: nr1bnd,nr2bnd,iommaxbnd,nelecmaxbnd,nangumin
      &          ,iomminbnd
 
@@ -523,18 +527,21 @@ c-----> end checking grids
            write(6,*)' building initial wave packet for iphoto= ',iphoto
            call flush(6)
 
-            do i=1,ntotproc(idproc)
+           do i=1,ntotproc(idproc)
                call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
                iang=indangreal(iangp,idproc)
                if(ir1.le.nr1bnd.and.ir2.le.nr2bnd
-     &              .and.iang.le.nangubnd
-     &              .and.ielec.le.nelecmaxbnd)then
+     &              .and.iang.le.nangubnd)then
+!     &              .and.ielec.le.nelecmax)then
+!     &              .and.ielec.le.nelecmaxbnd)then
                   if(iphoto.eq.2)then
 
                      if(iom.le.iommaxbnd)then
-                        xxx=bndvec(ir1,ir2,iang,iom,ielec)
-                        rpaq0(i)=bndvec(ir1,ir2,iang,iom,ielec)
-                        xnormbnd=xnormbnd+xxx*xxx
+                        if(ielec.eq.ielecref)then
+                           xxx=bndvec(ir1,ir2,iang,iom,1)
+                           rpaq0(i)=rpaq0(i)+xxx
+                           xnormbnd=xnormbnd+xxx*xxx
+                        endif
                     endif
                   elseif(iphoto.eq.1)then
                      do iomini=0,iommaxbnd
@@ -542,7 +549,8 @@ c-----> end checking grids
                         if(iabs(iq).le.1)then
                          y123=dipol(ir,iang,ielec,iq)
                          x123=factresj(iomini,iq,iom)
-                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
+!                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
+                         xxx=bndvec(ir1,ir2,iang,iomini,1)
                          rpaq0(i)=rpaq0(i)+xxx*y123*x123
                          xnormbnd=xnormbnd+xxx*xxx
 
@@ -559,7 +567,13 @@ c-----> end checking grids
          call MPI_BARRIER(MPI_COMM_WORLD, ierror)
 
          write(6,*)' In dip_bndgrid norm bound state= ',xnormbnd
+     &        ,'  in proc= ',idproc
+         nnn=1
+      call MPI_REDUCE(xnormbnd,xnormbnd_tot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(xnormbnd_tot,nnn,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
 
+          write(6,*)'dip_bndgrid total norm bound state= ',xnormbnd_tot
       deallocate(ielecbnd,iombnd
      &     ,ir1bnd,ir2bnd,iangbnd)
       return

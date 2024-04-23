@@ -377,7 +377,8 @@ c             isi=(-1.d0)**(iomdi)
             endif
             if(idproc.eq.0)then
               write(23,'(100(1x,e15.7))')r*convl
-     &      ,((potmat(ie,je)/conve/ev2cm,ie=je,nelec),je=1,nelec)   !,ielec
+     &      , potmat(ielec,ielec)/conve/ev2cm
+!     &      ,((potmat(ie,je)/conve/ev2cm,ie=je,nelec),je=1,nelec)   !,ielec
             endif
          enddo
          if(idproc.eq.0)close(23)

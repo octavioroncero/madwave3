@@ -27,7 +27,7 @@
 *energy grid in eV
 *       parameter(Emin=-5.d0,Emax=5.d0,ne=100000,xkgam=0.000005)
 
-* kmax (maxinum number of Chebyshev iterations read
+* kmax (maximum number of Chebyshev iterations read
 *       parameter(kmax=500000)
 *     dimension auto(0:kmax)
 

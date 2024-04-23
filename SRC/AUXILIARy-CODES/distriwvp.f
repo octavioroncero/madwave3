@@ -337,7 +337,7 @@
 
 **>> Main Loop in energy
 
-      open(15,file='distriS2prod.elec',status='unknown')
+      open(15,file='distriS2prod.vib',status='unknown')
       ifile=36
       ivfile=15
       iii=ifile
@@ -479,8 +479,8 @@ c            endif
                         S2no=S2no+S2pro(iv,j,ielec,iom)
                         vibprod(iv)=vibprod(iv)+S2pro(iv,j,ielec,iom)
                         rotprod(j)=rotprod(j)+S2pro(iv,j,ielec,iom)
-                        vibrot(j)=vibrot(j)+rotprod(j)      
-                     enddo
+                        vibrot(j)=vibrot(j)+rotprod(j)
+                    enddo
                   endif
 !                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
 !     &                  ,(rotprod(j)*photonorm,j=j00,j1) 

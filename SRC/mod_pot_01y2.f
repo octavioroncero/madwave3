@@ -543,8 +543,8 @@
                            vangtot(ir1,iang)=0.d0
                         endif
                      enddo
-                     write(ifile,'(500(1x,e15.7))')r1,r2
-     &                 ,(vangtot(ir1,iang),iang=1,nangu,nangplot)
+                     write(ifile,'(500(1x,e20.12))')r1,r2
+     &      ,(vangtot(ir1,iang)/conve1/ev2cm,iang=1,nangu,nangplot)
 !                  endif
                enddo
 
@@ -562,7 +562,7 @@
                         ctet=cgamma(iang)
                         angulo=dacos(ctet)*180.d0/pi
                      write(ifile,'(500(1x,e15.7))')r2,angulo
-     &                       ,(vangtot(ir1,iang))
+     &                       ,(vangtot(ir1,iang)/conve1/ev2cm)
                      enddo
 !                  endif
                enddo
