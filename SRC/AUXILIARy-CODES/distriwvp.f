@@ -33,7 +33,8 @@
      &     ,iomminprod,iommaxprod
      &     ,Rbalinprod,n2prod0,n2prod1,nangproj0,nangproj1
       namelist /inputpotmass/system,xm1,xm0,xm2
-     &                      ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
+     &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
+      namelist/inputprocess/iphoto
 *********************************************************
 *Dimensions
       parameter (npunt=1024,npuntott=npunt*nmulgrid)
@@ -71,7 +72,7 @@
          open(10,file='input.dat',status='old')
          read(10,nml = inputgridbase)
          close(10)
-         iommaxprod=Jtot
+         iommaxprod=min0(Jtot,jmaxprod)
          open(10,file='input.dat',status='old')
          read(10,nml = inputtime)
          close(10)
@@ -87,6 +88,9 @@
          open(10,file='input.dat',status='old')
          read(10,nml = inputpotmass)
          close(10)
+         open(10,file='input.dat',status='old')
+         read(10,nml = inputprocess)
+         close(10)
 
          write(6,*)'  --- input data ---'
          write(6,nml = inputgridbase)
@@ -95,6 +99,7 @@
          write(6,nml = inputflux)
          write(6,nml = inputprod)         
          write(6,nml = inputpotmass)
+         write(6,nml = inputprocess)
          write(6,*)'  --- end input data ---'
 
          emindistri=ekinmin_eV
@@ -305,7 +310,14 @@
 
 **> Initial wavepacket
 
-         photonorm=1.d0
+      photonorm=1.d0
+      if(iphoto.gt.0)then
+      write(name,'("auto.v",i2.2,".j",i2.2,".J",i3.3)')nvref,jref,Jtot
+         ifileauto=123
+         open(ifileauto,file=name,status='old')
+         read(ifileauto,*)photonorm
+         close(ifileauto)
+      endif
          r2col = rcolini_ang
          ecol=ecol_ev*8065.5*conve1
          deltae=deltae_ev*8065.5*conve1
@@ -334,7 +346,6 @@
             erot=hbr*hbr*pepe*0.5d0/(r2*r2*xmasa)
             write(27,*)r2,dreal(zgaussr(ir2)*dconjg(zgaussr(ir2))),erot
          enddo
-
 **>> Main Loop in energy
 
       open(15,file='distriS2prod.vib',status='unknown')
@@ -366,25 +377,30 @@
          e=emin+dble(ie-1)*delta
          ekinini=e!-ediatref
 
-**> initial flux
-         pini=0.d0
-         paqini=0.d0
-         if(ekinini.gt.0.d0)then
-            pini=dsqrt(ekinini*xmasa*2.d0/hbr/hbr)
-            zfft=0.d0
-            do ir2=1,npunt
-               r=rmis2+dble(ir2-1)*ahgauss
-               arg=r*pini
+*     *> initial flux
+         if(iphoto.eq.0)then
+            pini=0.d0
+            paqini=0.d0
+            if(ekinini.gt.0.d0)then
+               pini=dsqrt(ekinini*xmasa*2.d0/hbr/hbr)
+               zfft=0.d0
+               do ir2=1,npunt
+                  r=rmis2+dble(ir2-1)*ahgauss
+                  arg=r*pini
                
-               CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
-                  
-               if(dabs(f).gt.1.d-20)then
-                  zexpo=dcmplx(-g,f)
-                  zfft=zfft+zgaussr(ir2)*zexpo
-               endif
-            enddo
-            zfft=zfft*ahgauss/2.d0/pi
-            paqini=dreal(zfft*dconjg(zfft))
+                  CALL BESPH2(F,DF,G,DG,PEPE,ARG,KEY,0)
+                   
+                  if(dabs(f).gt.1.d-20)then
+                     zexpo=dcmplx(-g,f)
+                     zfft=zfft+zgaussr(ir2)*zexpo
+                  endif
+               enddo
+               zfft=zfft*ahgauss/2.d0/pi
+               paqini=dreal(zfft*dconjg(zfft))
+            endif
+         elseif(iphoto.gt.0)then
+            paqini=1.d0
+            pini=1.d0
          endif
          write(6,'(10(1x,e15.7))')e/(conve1*8065.5),paqini,pini
 **> products properties
@@ -402,11 +418,16 @@ c            endif
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-15)then
+!            if(paqini.lt.1.d-15)then
+!               S2prodfac(iv,j,iele)=0.d0
+            if(iphoto.eq.0)then
                S2prodfac(iv,j,iele)=0.d0
-            else
-               S2prodfac(iv,j,iele)=
-     &              hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
+               if(paqini.lt.1.d-15)then
+                  S2prodfac(iv,j,iele)=
+     &                 hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
+               endif
+            elseif(iphoto.gt.0)then
+               S2prodfac(iv,j,iele)=4.d0*pfin/(pi*xmasaprod)
             endif
          enddo
          enddo

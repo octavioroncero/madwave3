@@ -188,15 +188,20 @@ c! the partition.
          write(6,*)'    i          zots            cm-1             eV'
          write(6,*)' -------------------------------------------------'
          write(6,*)
+         open(271,file='niveles.dat',status='unknown')
 
          do i=1,ntrue
             if(etrue(i).lt.vcutmax)then
                write(6,'(1x,i5,3(2x,e15.7))')i,etrue(i)
      &                 ,etrue(i)/conve1
      &                 ,etrue(i)/conve1/8065.5d0
+               write(271,'(1x,i5,3(2x,e15.7))')i,etrue(i)
+     &                 ,etrue(i)/conve1
+     &                 ,etrue(i)/conve1/8065.5d0
             endif
          enddo
          call flush(6)
+         close(271)
       endif
 
       if(plotbnd.ne.1)then

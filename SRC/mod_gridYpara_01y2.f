@@ -44,6 +44,7 @@
 *     process
 
       integer :: iphoto
+      real*8 :: photonorm
 
 *     products states analysis
 
@@ -173,14 +174,27 @@
          
 !     radial grid integration steps (in angstroms)
          
-      ah2 = (rfin2-rmis2)/dble(npun2-1)
+      if(npun2.gt.1)then
+          div=dble(npun2-1)
+          ah2=(rfin2-rmis2)/div
+      else
+          ah2=0.d0
+      endif
+
       if(npun1.gt.1)then
         div=dble(npun1-1)
         ah1 = (rfin1-rmis1)/div
-        steptot=ah1*ah2
       else
         ah1=0.d0
-        steptot=ah2
+      endif
+      if(npun1.gt.1.and.npun2.gt.1)then
+           steptot=ah1*ah2
+      elseif(npun1.gt.1.and.npun2.le.1)then
+           steptot=ah1
+      elseif(npun1.le.1.and.npun2.gt.1)then
+           steptot=ah2
+      else
+           steptot=1.d0
       endif
 
 !     angular grid: Gauss legendre

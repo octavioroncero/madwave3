@@ -430,7 +430,6 @@ c! the partition.
       use mod_flux_01y2
       use mod_pot_01y2, only : emindlt,delta2
       use mod_gridYpara_01y2, only : hbr 
-      use mod_flux_01y2
       implicit none
 
       complex*16 :: zexpo,zfactor

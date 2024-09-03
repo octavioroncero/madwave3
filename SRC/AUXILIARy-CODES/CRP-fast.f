@@ -231,7 +231,7 @@
                      write(name,'("../Omg",i1,"/p/J",i3.3
      &                 ,"/distriS2prod.elec")')iomref0,Jtot0
                endif
-               open(4,file=name,status='old')
+!               open(4,file=name,status='old')
 
 
                do ie=1,nener

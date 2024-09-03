@@ -45,6 +45,7 @@
       write(6,*)
       write(6,*)'  lanczos_parameters'
       write(6,*)'  ------------------'
+      call flush(6)
          open(10,file='input.dat',status='old')
          read(10,nml = lanczos_parameters)
          write(6,nml = lanczos_parameters)

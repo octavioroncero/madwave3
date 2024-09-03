@@ -350,8 +350,8 @@ c             isi=(-1.d0)**(iomdi)
       rmis=rmis1/convl
       rfin=(rmis1+dble(npun1-1)*ah1)/convl
       ah=(rfin-rmis)/dble(npunt-1)
-      rg=100.d0
-      ctet=0.d0
+      rg=R2inf_radial_functions/convl
+      ctet=-1.d0
       xm=xm1reac*convm
       xz=0.5d0/xm
 
@@ -516,7 +516,12 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
       ediatref=0.d0
       if(iprod.ne.1.and.npun1.gt.1)then
 
-         ediatref=ediat(nvref,jref,ielecref)
+         if(nvref.ge.nvini.and.nvref.le.nvmax.and.jref.le.jmax
+     &        .and.ielecref.le.nelecmax)then
+            ediatref=ediat(nvref,jref,ielecref)
+         else
+            ediatref=0.d0
+         endif
            
          write(6,*)' reference energy in reactants= '
      &                                  ,ediatref/conve1/ev2cm
@@ -543,8 +548,21 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
                  enddo
               enddo
               enddo
-           close(10)
-         endif
+              close(10)
+            do ielec=1,nelec
+               do j=jini,jini
+                  write(name,'("wv01-ielec",i2.2,"-j",i2.2,".dat")')
+     &                           ielec,j
+                  open(10,file=name,status='new')
+                  do ir1=1,npun1
+                     r=rmis1+dble(ir1-1)*ah1
+                     write(10,*)r
+     &               ,(fd(ir1,iv,j,ielec),iv=nvini,noBCstates(j,ielec))
+                  enddo
+                  close(10)
+               enddo
+            enddo
+          endif
 
 ! dealocating 
 
@@ -687,8 +705,8 @@ c            endif
 *a)  grid determination (in a.u.: de rest is in zots)
 
       r=rmis1/convl
-      rg=100.d0
-      ctet=0.d0
+      rg=R2inf_radial_functions/convl
+      ctet=1.d0
       xm=xm1reac*convm
 
       if(nvmax.gt.nvini)then
@@ -739,6 +757,10 @@ c            endif
  
       ediatref=0.d0
 
+         if(nvref.ge.nvini.and.nvref.le.nvmax.and.jref.le.jmax
+     &        .and.ielecref.le.nelecmax)then
+            ediatref=ediat(nvref,jref,ielecref)
+         endif
          ediatref=ediat(nvref,jref,ielecref)
            
          write(6,*)' reference energy in reactants= '
@@ -818,8 +840,8 @@ c            endif
 
          rmis=rmis2/convl
          ah=ah2/convl
-         rg=100.d0
-         ctet=0.d0
+         rg=R1inf_radial_functions/convl
+         ctet=-1.d0
          xm=xm1prod*convm
 
 !b)  potential determination
@@ -886,8 +908,12 @@ c            endif
 
 !     reference energy for iprod.eq.1
  
+         ediatref=0.d0
 
-         ediatref=ediatprod(nvref,jref)
+         if(nvref.le.nvmaxprod.and.nvref.ge.nviniprod)then
+            ediatref=ediatprod(nvref,jref)
+         endif
+
          if(iprod.eq.1)then
             write(6,*)' reference energy in products= '
      &                   ,ediatref/conve1/8065.5d0

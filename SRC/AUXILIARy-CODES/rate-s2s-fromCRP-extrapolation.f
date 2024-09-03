@@ -76,6 +76,7 @@
       write(6,'(40("-"))')
       write(6,'(10x,"Program rate-s2s-FromCRP")')
       write(6,'(40("-"))')
+      call flush(6)
 **>> constants
 
       pi = dacos(-1.d0)

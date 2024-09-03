@@ -14,7 +14,6 @@
 
       save
 * paraS2
-      real*8 :: photonorm
       real*8 :: r1flux_ang,ekinmin_ev,ekinmax_ev
       real*8 :: r1flux,ekinmin,ekinmax
       integer :: netot,ncontfile,icanref
@@ -530,7 +529,7 @@
       real*8 :: df,dg,f,g
       integer :: ie,iele,iv,j
 
-      photonorm=1.d0
+      
 *> Emin,Emax kinetic energies to determine interval for S2 elements evaluation
      
        etotmin=ekinmin

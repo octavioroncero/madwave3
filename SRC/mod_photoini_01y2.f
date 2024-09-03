@@ -335,6 +335,7 @@
 !     preparing autocorrelation file
 
       ifileauto=11
+      photonorm=xnorm_ini
       write(name,'("auto.v",i2.2,".j",i2.2,".J",i3.3)')nvref,jref,Jtot
       it0=0
       indt=0

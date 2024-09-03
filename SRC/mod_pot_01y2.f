@@ -22,14 +22,15 @@
       real*8 ::  vcutmax  ,radcutmax  ,rotcutmax
 * pot
       integer :: nomaxV,maxpoint
-      integer :: nelec
+      integer :: nelec,radau
       integer,allocatable :: iomdiat(:),iomatom(:)
       real*8, allocatable :: sigdiat(:),sigatom(:)
       real*8, allocatable :: VVV(:,:,:,:)
 * masses
       real*8 :: xm1red, xm2red, xm0red,xmtot
      &                ,xm1reac,xm2reac,xm1prod,xm2prod
-     &                ,xm1,xm0,xm2
+     &     ,xm1,xm0,xm2
+      real*8 :: R1inf_radial_functions, R2inf_radial_functions
 
       character*70 :: name
       character*10 :: system
@@ -54,11 +55,15 @@
       integer :: ierror,ir1,ir2
 *********************************************************
       namelist /inputpotmass/system,xm1,xm0,xm2
-     &                      ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
+     &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
+     &     ,radau,R1inf_radial_functions,R2inf_radial_functions
 
 
          write(6,'(40("_"),/,10x,"Pot_mod",/,40("_"))')
          open(10,file='input.dat',status='old')
+         radau=0
+         R1inf_radial_functions=100.d0
+         R2inf_radial_functions=100.d0
          read(10,nml = inputpotmass)
          write(6,'(80("-"),/,10x
      &      ,"Mass and pot determination for 01+2= ",a20
@@ -72,18 +77,28 @@
 
       xmtot=xm0+xm1+xm2
 
+      if(radau.eq.0)then
+            write(6,*)' Using A + BC body fixed Jacobi coordinates'
 * Reactant Jacobi
-      xm1reac = (xm0*xm1)/(xm0+xm1)
-      xm2reac = (xm2*(xm0+xm1))/xmtot
+         xm1reac = (xm0*xm1)/(xm0+xm1)
+         xm2reac = (xm2*(xm0+xm1))/xmtot
 * Product Jacobi
-      xm1prod = (xm0*xm2)/(xm0+xm2)
-      xm2prod = (xm1*(xm0+xm2))/xmtot
+         xm1prod = (xm0*xm2)/(xm0+xm2)
+         xm2prod = (xm1*(xm0+xm2))/xmtot
 * Reduced masses for dynamical calculations
 
-      xm1red = (xm0*xm1) / (xm0+xm1)
-      xm2red = (xm2*(xm0+xm1)) / xmtot
-      xm0red = 0.d0
-
+         xm1red = (xm0*xm1) / (xm0+xm1)
+         xm2red = (xm2*(xm0+xm1)) / xmtot
+         xm0red = 0.d0
+      elseif(radau.eq.1)then
+         write(6,*)' Using body fixed Radau(2+1) coordinates'
+         xm1red=xm1
+         xm2red=xm2
+         xm1reac=xm1red
+         xm2reac=xm2red
+         xm1prod=xm1red
+         xm2prod=xm1red
+      endif
 ! converting quantities to zots, masses are in amus
 
       write(6,*)' !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
@@ -160,17 +175,22 @@
 
                rpeq=r1/convl  ! to call pot in a.u.
                Rg=r2/convl
-
                ctet=cgamma(iang)
-               X1=rpeq
-               gam=xm1/(xm0+xm1)
-               X2=Rg*Rg+gam*gam*rpeq*rpeq+2.d0*gam*Rg*rpeq*ctet
-               X2=dsqrt(X2)
-               calpha=(Rg*ctet+gam*rpeq)/X2
-               if(dabs(calpha).gt.1.d0)then
-                  calpha=calpha/dabs(calpha)
-               endif
+               if(radau.eq.0)then
 
+                  X1=rpeq
+                  gam=xm1/(xm0+xm1)
+                  X2=Rg*Rg+gam*gam*rpeq*rpeq+2.d0*gam*Rg*rpeq*ctet
+                  X2=dsqrt(X2)
+                  calpha=(Rg*ctet+gam*rpeq)/X2
+                  if(dabs(calpha).gt.1.d0)then
+                     calpha=calpha/dabs(calpha)
+                  endif
+               elseif(radau.eq.1)then
+                  x1=rpeq
+                  x2=Rg
+                  calpha=ctet
+               endif
                call potelebond(x1,x2,calpha,potmat,nelecmax,nelecmax)
 
                do ie=1,nelecmax
@@ -283,8 +303,14 @@
          write(6,*)
          write(6,*)'         Vmin (eV)= ',vmin/conve1/eV2cm
          write(6,*)
-         write(6,*)'      at r1=rpeq (angstroms) = ',x1min
-         write(6,*)'         r2=Rgran (angstroms)= ',x2min
+         if(radau.eq.0)then
+            write(6,*)'      at r1=rpeq (angstroms) = ',x1min
+            write(6,*)'         r2=Rgran (angstroms)= ',x2min
+         elseif(radau.eq.1)then
+            write(6,*)'      at r1 (angstroms) = ',x1min
+            write(6,*)'         r2 (angstroms) = ',x2min
+         endif
+            
          write(6,*)'         gam (degrees)       = ',angmin 
          write(6,*)
          write(6,*)'    ** end potential calculation **'
