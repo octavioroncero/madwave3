@@ -64,15 +64,18 @@ in which the user-provided potential program write the required information.
 An example (for H+HD  using the BKMP2  PES) can be found in directory
 EXAMPLES/H+DH-v0j0::
 
+```
 $ ./colpot.sh 
 
 $ mkdir pot func dip
 
 $ ./pot.out
+```
 
 will generate that information.
 colpot.sh is a shell  that compile the "external potential" to generate pot.out.
-In EXAMPLES/H+DH-v0j0 there is an example on how make the interface for adapting a external potential code,
+
+In `EXAMPLES/H+DH-v0j0` there is an example on how make the interface for adapting a external potential code,
 and a full explanation on how to proceed to study state-to-state reactive and inelastic H+DH collisions
 
 pot.out and all auxiliary programs reads the data 
