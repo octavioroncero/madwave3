@@ -39,7 +39,7 @@
 
 *     write options
       integer :: iwrt_pot,iwrt_wvp,iwrt_reac_distri
-     &           ,n1plot,n2plot,nangplot
+     &           ,n1plot,n2plot
 
 *     process
 
