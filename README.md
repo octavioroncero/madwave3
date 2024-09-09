@@ -1,6 +1,5 @@
 # Madwave3: quantum wave packet program for triatomic systems  
 
-
 It is a fortran code, parallelized with MPI and openMP,
 for the quantum propagation of wave packets describing the dynamics of triatomic systems,
  for treating state-to-state reactive and inelastic scattering::
@@ -45,42 +44,39 @@ For the instalation of the general purpose program::
 
 ```
 $ cd BIN 
-
-$ source ./colmad3.sh  or   make
+$ source ./colmad3.sh
+```
+or
+```
+$ cd BIN 
+$ make main aux
 ```
 
-and it will create 10 executables
+the main (compiled with `make main`) programs are `mad3.out` and `bndgrid.out`
+devoted to the wavepacket propagation and bound state calculations.
 
-bndgrid.out  cheby-spectra.out  cip.out   crp.out  distri.out  distriREAC.out  mad3.out  rate.out  rates2s.out  sigma.out  
+A set of auxiliary programs are also generated (with `make aux`) devoted to the analysis and calculations of different properties after the wavepacket propagation. They are independent from the potential used. These programs are:
+- distri.out
+- distriREAC.out
+- crp.out
+- cip.out
+- cipave.out
+- rate.out
+- rates2s.out
+- inelastic-rates2s.out
+- sigma.out
+- cheby-spectra.out
+- Einstein.out
 
-which are independent on the potential used. 
-
+## Usage
 mad3.out (and bndgrid.out) read the potential, fragments wave functions and electric dipole moments in
 
+```
 ../pot  ../func ../dip ../bnd  (the  last two  in the case of photodissociation)
-
-in which the user-provided potential program write the required information.
-
-An example (for H+HD  using the BKMP2  PES) can be found in directory
-EXAMPLES/H+DH-v0j0::
-
-```
-$ ./colpot.sh 
-
-$ mkdir pot func dip
-
-$ ./pot.out
 ```
 
-will generate that information.
-colpot.sh is a shell  that compile the "external potential" to generate pot.out.
+in which the user-provided potential program writes the required information.
 
-In `EXAMPLES/H+DH-v0j0` there is an example on how make the interface for adapting a external potential code,
-and a full explanation on how to proceed to study state-to-state reactive and inelastic H+DH collisions
-
-pot.out and all auxiliary programs reads the data 
-included in  "input.dat" organized in different namelists
-which is also used by mad3.out boundgrid.out  codes to calculate state-to-state reation
-probabilities for each partial wave (total angular momenbtum J)
-
-
+## Examples
+An example for the H+HD collision using an in-house PES can be found in the directory
+[EXAMPLES/H+DH-v0j0](EXAMPLES/HD%2BH_collision). Please follow the instructions in the README file inside this folder for a detailed description of the input for each calculation and the steps to reproduce them.
