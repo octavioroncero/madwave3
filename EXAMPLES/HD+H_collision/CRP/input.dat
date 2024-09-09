@@ -1,0 +1,95 @@
+&INPUTGRIDBASE
+ NPUN1=    128, RMIS1=     0.1d0     , RFIN1=     9.d0     , NPUN1MIN= 64,
+ NPUN2=        128, RMIS2= 0.1d0 RFIN2=  9.d0    ,
+ NANGU= 60, NANGPLOT= 2,
+ NELECMAX= 1,
+ JTOT=     0, IPARITY=  1
+ IOMMIN=   0, IOMMAX=   0,
+ J0=       0, INC= 1
+ JINI=     0, JMAX=     39,
+ NVINI=     0, NVMAX=     5,
+ NVREF=     0, JREF=      0, IOMREF=    0, IELECREF=  1,
+ /
+&INPUTWRITE
+   iwrt_pot=1 iwrt_wvp=1
+   iwrt_reac_distri=0
+   n1plot=1
+   n2plot=1
+   nangplot=1
+/
+&INPUTBND
+ JTOTINI=          1,
+ IPARINI=         -1,
+ NVBOUND=         19,
+ NPROCBND=          4,
+ MAXBNDDIM=     100000,
+ /
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! process
+&inputprocess
+       iphoto=0   ! =0 for collisions, =1 electric dipole absorption, =2, bright approximation
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!  absorcion
+&inputabsorcion
+      absalp1=0.5d0, absr1=7.0d0, n1expo=2, ninterv1=1
+      absalp2=0.5d0, absr2=7.d0, n2expo=2, ninterv2=1
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  bnd for photo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!! products
+&inputprod
+! iprod  ! =0 no products, =1 uses product Jacobi coordinates, =2 uses reactant Jacobi coordinates
+iprod=2  ! =0 no products state distribution,
+         ! =1 using products Jacobi coordinates for propa,
+         ! =2 using reactants Jacobi coordinates,
+         !    transforming to products to extract s2s properties
+      nviniprod=0,nvmaxprod=10
+      jiniprod=0, jmaxprod=20 
+      iomminprod=0!  , iommaxprod=0 ! Jtot
+      Rbalinprod=6.d0
+      n2prod1=256 !npun2/2
+/
+!!!!!!!!!!!!!!!!!!!!!!!!!!!! time integration
+&inputtime
+      ntimes = 500
+      nloop =7 
+      kminelastic=400
+/
+&inputpotmass
+!-----------> masses(in amu) and potential(in eV) cut data
+system='H+DH'
+xm0=2.014101779d0
+xm1=1.007825035d0
+xm2=1.007825035d0
+VcutmaxeV=2.5d0
+radcutmaxeV=2.5d0
+rotcutmaxeV=5.d0
+/
+&inputcol
+!----> initial wavepacket for collisions
+Rcolini_ang=5.2d0
+ecol_ev=0.62d0
+deltaE_ev=0.2d0
+/
+&inputflux
+!----> data for total flux
+r1flux_ang=4.d0
+netot=500
+ekinmin_eV=0.1d0,ekinmax_eV=1.5d0              
+ncontfile=0
+/
+ &sigmaS2prod
+    Jtotmax=80
+    nCalc=2
+    nESigma=2000
+    EminSigma_eV=0.1,EmaxSigma_Ev=1.5
+ /
+ &InputRateSigma
+    Tempmin=5.d0
+    Tempmax=500.d0
+    ntemp=100
+    extrapolation=0
+    Afactor_angstroms2eV=15.d0
+    Epower=-0.3333d0
+    EMinextra_eV=1.d-4
+    nEextra=10000
+ /
+

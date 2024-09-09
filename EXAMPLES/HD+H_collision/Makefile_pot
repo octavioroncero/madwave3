@@ -1,0 +1,20 @@
+MPI_FC=mpif77
+FC=mpif77
+FFLAGS=-O3 -DUSE_MPIF -fallow-invalid-boz -fallow-argument-mismatch
+
+SRC_DIR=../../madwave3/SRC/
+
+FLIB=-lfftw3
+FMOD=-I$(SRC_DIR)
+
+MODS=$(addprefix $(SRC_DIR), mod_gridYpara_01y2.f mod_pot_01y2.f mod_baseYfunciones_01y2.f mod_Hphi_01y2.f mod_photoini_01y2.f mod_colini_01y2.f liboctdyn.f dipele_general.f coupling_general.f)
+MODS_OBJ=$(MODS:%.f=%.o)
+
+POT_DIR=pes/
+POT=$(addprefix $(POT_DIR), FFmodules.f90  FFpots.f90  FFroutines.f  pothead.f)
+
+pot: $(MODS_OBJ) $(POT) $(SRC_DIR)main_potini.f 
+	$(MPI_FC) $(FFLAGS) $^ -o pot.out $(FLIB) $(FMOD)
+
+clean:
+	rm -f pot.out $(SRC_DIR)/*.o $(SRC_DIR)/*.mod
