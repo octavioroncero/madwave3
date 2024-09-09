@@ -35,10 +35,10 @@ the repository::
  git clone https://github.com/qmolastro/madwave3
 ```
 
-that will create the directory madwave3 with 4 sub-directories
+that will create the directory madwave3 with 3 sub-directories
 
 ```
-      BIN  EXAMPLES  PES  SRC
+      BIN  EXAMPLES  SRC
 ```
 
 For the instalation of the general purpose program::
@@ -46,7 +46,7 @@ For the instalation of the general purpose program::
 ```
 $ cd BIN 
 
-$ source ./colmad3.sh
+$ source ./colmad3.sh  or   make
 ```
 
 and it will create 10 executables
@@ -72,7 +72,8 @@ $ ./pot.out
 
 will generate that information.
 colpot.sh is a shell  that compile the "external potential" to generate pot.out.
-In EXAMPLES/H+DH-v0j0 there is an example on how make the interface for adapting a external potential code.
+In EXAMPLES/H+DH-v0j0 there is an example on how make the interface for adapting a external potential code,
+and a full explanation on how to proceed to study state-to-state reactive and inelastic H+DH collisions
 
 pot.out and all auxiliary programs reads the data 
 included in  "input.dat" organized in different namelists
