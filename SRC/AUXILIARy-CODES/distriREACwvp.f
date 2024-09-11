@@ -379,7 +379,7 @@
 !               S2prodfac(iv,j,iele)=0.d0
             if(iphoto.eq.0)then
                S2prodfac(iv,j,iele)=0.d0
-               if(paqini.lt.1.d-15)then
+               if(paqini.gt.1.d-15)then
                   S2prodfac(iv,j,iele)=
      &                 hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
                endif
