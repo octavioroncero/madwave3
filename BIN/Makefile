@@ -1,6 +1,6 @@
 MPI_FC=mpif77
 FC=mpif77
-FFLAGS=-O3 -DUSE_MPIF -fallow-invalid-boz -fallow-argument-mismatch
+FFLAGS=-O3 #-DUSE_MPIF -fallow-invalid-boz -fallow-argument-mismatch # uncomment for newer compilers
 
 SRC_DIR=../SRC/
 AUX_DIR=$(SRC_DIR)/AUXILIARy-CODES/
