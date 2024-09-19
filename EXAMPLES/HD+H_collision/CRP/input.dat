@@ -1,7 +1,7 @@
 &INPUTGRIDBASE
  NPUN1=    128, RMIS1=     0.1d0     , RFIN1=     9.d0     , NPUN1MIN= 64,
  NPUN2=        128, RMIS2= 0.1d0 RFIN2=  9.d0    ,
- NANGU= 60, NANGPLOT= 2,
+ NANGU= 60,
  NELECMAX= 1,
  JTOT=     0, IPARITY=  1
  IOMMIN=   0, IOMMAX=   0,

@@ -2,7 +2,7 @@ MPI_FC=mpif77
 FC=mpif77
 FFLAGS=-O3 #-DUSE_MPIF -fallow-invalid-boz -fallow-argument-mismatch # uncomment for newer compilers
 
-SRC_DIR=../../madwave3/SRC/
+SRC_DIR=../../SRC/
 
 FLIB=-lfftw3
 FMOD=-I$(SRC_DIR)
