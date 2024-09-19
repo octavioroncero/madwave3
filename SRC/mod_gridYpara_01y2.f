@@ -39,7 +39,7 @@
 
 *     write options
       integer :: iwrt_pot,iwrt_wvp,iwrt_reac_distri
-     &           ,n1plot,n2plot
+     &           ,n1plot,n2plot,nangplot
 
 *     process
 
@@ -84,7 +84,7 @@
 *********************************************************
       namelist /inputgridbase/npun1,rmis1,rfin1,npun1min
      &                       ,npun2,rmis2,rfin2
-     &                       ,nangu,nangplot
+     &                       ,nangu
      &     ,Jtot,iparity,inc,nelecmax,iommin,iommax,j0
      &     ,jini,jmax,nvini,nvmax
      &                       ,nvref,jref,iomref,ielecref
