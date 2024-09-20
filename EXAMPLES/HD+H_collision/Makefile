@@ -11,7 +11,7 @@ MODS=$(addprefix $(SRC_DIR), mod_gridYpara_01y2.f mod_pot_01y2.f mod_baseYfuncio
 POT_DIR=pes/
 POT=$(addprefix $(POT_DIR), FFmodules.f90  FFpots.f90  FFroutines.f  pothead.f)
 
-pot: $(MODS) $(POT) $(SRC_DIR)main_potini.f
+potbin: $(MODS) $(POT) $(SRC_DIR)main_potini.f
 	$(MPI_FC) $(FFLAGS) $^ -o pot.out $(FLIB)
 
 clean:
