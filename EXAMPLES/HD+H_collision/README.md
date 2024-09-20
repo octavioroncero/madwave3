@@ -14,9 +14,9 @@ MadWave3 requires to represent the PES into a grid in Jacobi coordinates.
 2.  Inspect the `input.dat` file which defines the grid.
 ```
 &INPUTGRIDBASE
- NPUN1=    256, RMIS1=     0.1d0     , RFIN1=     9.d0     , NPUN1MIN= 64,
- NPUN2=        256, RMIS2= 0.1d0 RFIN2=  9.d0    ,
- NANGU= 80, NANGPLOT= 2,
+ NPUN1=    256, RMIS1=     0.1d0     , RFIN1=  20.d0     , NPUN1MIN= 64,
+ NPUN2=    256, RMIS2= 0.1d0,          RFIN2=  20.d0    ,
+ NANGU= 140,
  NELECMAX= 1,
  JTOT=     0, IPARITY=  1
  IOMMIN=   0, IOMMAX=   0,
