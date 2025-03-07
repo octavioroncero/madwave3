@@ -481,7 +481,7 @@
             else
                pfin=0.d0
             endif
-            if(paqini.lt.1.d-15)then  !if(paqini.lt.1.d-15)then
+            if(paqini.lt.1.d-10)then  !if(paqini.lt.1.d-15)then
                S2factor(ie,iv,j,iele)=0.d0
             else
                S2factor(ie,iv,j,iele)=

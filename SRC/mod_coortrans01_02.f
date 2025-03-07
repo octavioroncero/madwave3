@@ -111,7 +111,7 @@
                   else
                      pfin=0.d0
                   endif
-                  if(paqini.lt.1.d-50)then
+                  if(paqini.lt.1.d-10)then
                      S2prodfac(ie,iv,j)=0.d0
                   else
                      S2prodfac(ie,iv,j)=
@@ -413,8 +413,9 @@
                
          if(idproc.eq.0.and.iwrt_pot.eq.1)then
             do iv=nviniprod,nvmaxprod
-               write(name,'("prodwv.v",i2.2,".Omg",i2.2)')
-     &                  iv,iom
+            do ielec=1,nelecmax
+               write(name,'("prodwv.v",i2.2,".e",i2.2,".Omg",i2.2)')
+     &                  iv,ielec,iom
                open(43,file=name,status='unknown')
                do iang=nangproj0,nangproj1
                   ang=dacos(cgamma(iang))*180.d0/pi
@@ -422,10 +423,8 @@
                      r2=rmis2+dble(ir2-1)*ah2
                      do j=jiniprod,jmaxprod
                         pinfun(j)=0.d0
-                        do ielec=1,nelecmax
                            pinfun(j)=pinfun(j)
      &                          +prodwf(ir2,iang,ielec,iv,j,iom)**2
-                        enddo
                         if(dabs(pinfun(j)).lt.1d-20)pinfun(j)=0.d0
                      enddo
                 
@@ -435,6 +434,7 @@
                   write(43,'()')
                enddo             
                close(43)            
+            enddo ! ielec
             enddo ! iv
          endif
       enddo ! iom  

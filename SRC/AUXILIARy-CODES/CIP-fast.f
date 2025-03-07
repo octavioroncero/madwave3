@@ -148,7 +148,8 @@
        PJ(:,:)=0.d0
 *     *> reading diatomic energies of reactants
 
-      open(10,file='../func/bcwf',status='old')
+       open(10,file='../func/bcwf',status='old')
+       write(6,*)' Diatomic energies'
          do ielec=1,nelecmax
          do j=j00,j11
             read(10,*)iielec,jj,noBCstates
@@ -161,7 +162,17 @@
             enddo
          enddo
          enddo
-      close(10)
+         close(10)
+
+         eref=ediat(nvref,jref,ielecref)
+         do ielec=1,nelecmax
+         do j=j00,j11
+            do iv=nv0,min0(nv1,noBCstates)
+               ediat(iv,j,ielec)=ediat(iv,j,ielec)-eref
+               write(6,*)ielec,j,iv, ediat(iv,j,ielec)/(conve1*eV2cm)
+               enddo
+            enddo
+         enddo
 
 *     *>> J at which WP calculations have been performed
 !**   >>  Reading calculated J

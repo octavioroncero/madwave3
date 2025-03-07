@@ -462,6 +462,7 @@
                      CRPtot=CRPtot+CRP(iedif,j,iv,ielec,iomref0)
                   
                   enddo
+                  if(S2mat(j).lt.1.d-60)S2mat(j)=0.d0
                enddo  ! j
                write(ifile,'(50(1x,e15.7))')enerdifeV,xkini2
      &                                   ,(S2mat(j),j=j00,j11)

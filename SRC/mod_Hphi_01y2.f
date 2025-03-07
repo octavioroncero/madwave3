@@ -273,6 +273,8 @@
       real*8 :: yylmin,yylmax,yylmean,r2,r2eff,emineff,emeaneff
       real*8 :: eee,emaxeff,x11,x22,yyy,facmass,erotlmax
       integer :: iom,iterm,jjcanp,jjcan,jjelec,jjom,iq,iang,jang,jangp
+      integer :: sigelec
+
       
 *  initialization
 
@@ -294,9 +296,16 @@
 *  starting loops
 
       do ielec=1,nelec
+         sigelec=1
+         if(sigdiat(ielec).eq.-1.d0.or.sigatom(ielec).eq.-1.d0)then
+            sigelec=-1
+         endif
          do j=j0,(nangu-1)*inc,inc
             iom0=iommin
-            if(iparity.ne.int((-1.d0)**Jtot).and.iommin.eq.0)iom0=1
+            if(iparity.ne.sigelec*int((-1.d0)**Jtot)
+     &         .and.iommin.eq.0)then
+                 iom0=1
+            endif
             if(iom0.le.j)then
 
             iom1=min0(j,iommax)
@@ -436,7 +445,9 @@
 
       rr1m2mx=0.d0
       rr2m2mx=0.d0
-      
+
+      nopr1(:)=1
+      nopr2(:)=1
       do ip=0,nproc-1
          do iangp=1,nanguproc
             iang=indangreal(iangp,ip)

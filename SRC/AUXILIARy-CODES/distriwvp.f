@@ -32,6 +32,7 @@
      &                   ,jiniprod,jmaxprod
      &     ,iomminprod,iommaxprod
      &     ,Rbalinprod,n2prod0,n2prod1,nangproj0,nangproj1
+     &     ,Emincut_prod_eV
       namelist /inputpotmass/system,xm1,xm0,xm2
      &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
       namelist/inputprocess/iphoto
@@ -65,9 +66,10 @@
       CONVM=.182288853D4
       nelec=nelecmax
       ceVcm=1.23984245d-4
-
+      au2eV = 27.21113957d0
       
 !     reading data
+         Emincut_prod_eV=0.d0
          iommax=Jtot
          open(10,file='input.dat',status='old')
          read(10,nml = inputgridbase)
@@ -85,12 +87,15 @@
          open(10,file='input.dat',status='old')
          read(10,nml = inputprod)
          close(10)
+         Emincut_prod=Emincut_prod_eV*8065.5*conve1
+         write(6,*)' Emincut_prod= ',Emincut_prod
          open(10,file='input.dat',status='old')
          read(10,nml = inputpotmass)
          close(10)
          open(10,file='input.dat',status='old')
          read(10,nml = inputprocess)
          close(10)
+
 
          write(6,*)'  --- input data ---'
          write(6,nml = inputgridbase)
@@ -422,7 +427,7 @@ c            endif
 !               S2prodfac(iv,j,iele)=0.d0
             if(iphoto.eq.0)then
                S2prodfac(iv,j,iele)=0.d0
-               if(paqini.gt.1.d-15)then
+               if(paqini.gt.1.d-10.and.e.gt.Emincut_prod)then
                   S2prodfac(iv,j,iele)=
      &                 hbr*hbr*pfin*pini/(2.d0*paqini)/xmasa/xmasaprod
                endif
@@ -505,7 +510,7 @@ c            endif
                   endif
 !                  write(iii,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
 !     &                  ,(rotprod(j)*photonorm,j=j00,j1) 
-               enddo  ! iom
+               enddo            ! iom
                write(iiiv,'(1000(1x,e15.7))') e/(conve1*8065.5d0)
      &                  ,(vibrot(j)*photonorm,j=j00,j1) 
  

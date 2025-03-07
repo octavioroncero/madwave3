@@ -52,6 +52,7 @@
       integer :: iomminprod,iommaxprod,n2prod1,n2prod0
       integer :: nangproj0,nangproj1
       real*8 :: rbalinprod
+      real*8 :: Emincut_prod,Emincut_prod_eV
       
 *     for dimension of matrices, total quantites and per processor
       integer :: nomgproc,nanguproc,nanguprocdim,ncanmax
@@ -94,6 +95,7 @@
      &                   ,jiniprod,jmaxprod
      &     ,iomminprod,iommaxprod
      &     ,Rbalinprod,n2prod0,n2prod1,nangproj0,nangproj1
+     &     ,Emincut_prod_eV
 *********************************************************
       namelist /inputprocess/iphoto
 *********************************************************
@@ -130,9 +132,12 @@
       write(6,*)
       write(6,*)'  products data'
       write(6,*)'  -------------'
+         Emincut_prod_eV=0.d0
          open(10,file='input.dat',status='old')
          read(10,nml = inputprod)
          if(iommaxprod.eq.0)iommaxprod=min0(Jtot,jmaxprod)
+         Emincut_prod=Emincut_prod_eV/conve1/eV2cm
+
          write(6,nml = inputprod)
          call flush(6)
          close(10)
@@ -268,14 +273,14 @@
           call MPI_BARRIER(MPI_COMM_WORLD, ierror)
           stop
       endif
-      if(iparity*(-1)**(Jtot).lt.0)then
-          if(iommin.eq.0)then
-             write(6,*)' iommin=0 not for this parity'
-             call flush(6)
-             call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-             stop
-          endif
-      endif
+!      if(iparity*(-1)**(Jtot).lt.0)then
+!          if(iommin.eq.0)then
+!             write(6,*)' iommin=0 not for this parity'
+!             call flush(6)
+!             call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+!             stop
+!          endif
+!      endif
       if(jmax.gt.(nangu2-1)*inc)then
         write(6,*)'  jmax= ',jmax
      &        ,' > (nangu2-1)*inc= ',(nangu2-1)*inc
@@ -286,201 +291,6 @@
      
       return
       end subroutine input_grid
-!--------------------------------------------------
-      subroutine paralelizacion
-!--------------------------------------------------
-      implicit none
-      include "mpif.h"
-      real*8 :: div
-      integer :: ierror,lmax,ip,iparbc,ielec,iom,iomdi,iomat
-      integer :: isignexp,isign,ipar,iomtot,ifail,jmin,isi
-      integer :: i,iang,iangproc,ican,io,iomc,iomind,iomindc,ncan
-      integer :: ipang,ipc,ipomg,nnproc,nomg,nprocang
-
-      write(6,*)
-      write(6,*)' Memory allocating among processors, id= ',idproc
-      write(6,*)
-      call flush(6)      
-!--------------------------------
-!  dimensions for parallelization
-!--------------------------------
-      nprocdim=nproc
-      nomgdim=iommax-iommin+1
-      nomg=nomgdim
-      ncanmax=nomg*nelecmax
-      write(6,*)'nprocdim= ',nprocdim,'  nomgdim= ',nomgdim
-      if(nprocdim.le.nomgdim)then
-        if(mod(nomgdim,nprocdim).ne.0)then
-            write(6,*)' no. of Omegas no divisible by nproc'
-            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-            call flush(6)
-            stop
-        endif
-        nomgproc=nomg/nprocdim
-        nomgprocdim=nomgdim/nprocdim
-        nprocang=1
-        nanguproc=nangu
-        nanguprocdim=nangu
-      else
-        if(mod(nprocdim,nomgdim).ne.0)then
-            write(6,*)' no. of nproc no divisible by Omegas'
-            call flush(6)
-            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-            stop
-        endif
-        if(mod(nangu*nomgdim,nprocdim).ne.0)then
-            write(6,*)' no. of angles,Omegas no divisible by nproc'
-            call flush(6)
-            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-            stop
-        endif
-        nomgproc=1
-        nomgprocdim=1
-        nprocang=nprocdim/nomg
-        nanguproc=nangu/nprocang
-        nanguprocdim=nangu/nprocang
-      endif
-      ncanprocdim=nelecmax*nomgprocdim
-
-      if(nomgproc.gt.nomgprocdim)then
-         write(6,*)'  nomgproc= ',nomgproc,' > nomgprocdim '
-         call flush(6)
-         call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-         stop
-      endif
-
-* index parallel and mpi initialization
-
-        write(6,*)'  allocating indexes '
-        allocate( ncanproc(0:nprocdim-1)
-     &    ,ibasproc(ncanmax,0:nprocdim-1)
-     &    ,indiomreal(nomgprocdim,0:nprocdim-1)
-     &    ,indangreal(nanguprocdim,0:nprocdim-1)
-     &    ,indproc(iommin:iommax,nangu)
-     &    ,ntotproc(0:nprocdim-1)
-     &    , ncouproc(0:nprocdim-1)
-     &    ,ipcou(nprocdim,0:nprocdim-1)
-     &       , stat=ierror)
-
-        nointegerproc_mem=nointegerproc_mem
-     &    +nprocdim*ncanmax*nprocdim
-     &    +nomgprocdim*nprocdim
-     &    +nanguprocdim*nprocdim
-     &    +(iommax-iommin+1)*nangu
-     &    +nprocdim*(nprocdim+2)
-      write(6,*)'nointegerproc_mem= ',nointeger_mem
-      call flush(6)
-
-      if(ierror.ne.0)then
-         write(*,*)" error in initmem for indexes for parallelitation "
-         call flush(6)
-         stop
-      endif
-      do ip=0,nprocdim-1
-         ncanproc(ip)=0
-         ntotproc(ip)=0
-         ncouproc(ip)=0
-         do ican=1,ncanmax
-            ibasproc(ican,ip)=0
-         enddo
-         do io=1,nomgprocdim
-            indiomreal(io,ip)=0
-         enddo
-         do iang=1,nanguprocdim
-            indangreal(iang,ip)=0
-         enddo
-         do nnproc=1,nprocdim
-            ipcou(nnproc,ip)=0
-         enddo
-      enddo
-      do iang=1,nangu
-      do iom=iommin,iommax
-         indproc(iom,iang)=0
-      enddo
-      enddo
-
-* assignment of omega's and iang's to different processors
-
-      write(6,*)'  Omegas/Angles per procesor '
-      call flush(6)
-
-      ip=-1
-      do ipomg=1,nomgdim/nomgproc
-         do ipang=1,nangu/nanguproc
-            ip=ip+1
-
-            do iomind=1,nomgproc
-               iom=iommin+(ipomg-1)*nomgproc+iomind-1
-               indiomreal(iomind,ip)=iom
-            enddo
-
-            iangproc=0
-            do iang=nangu-ipang+1,1,-nprocang
-               iangproc=iangproc+1
-               indangreal(iangproc,ip)=iang
-            enddo
-            write(6,*)' procesor ',ip
-            write(6,'(10x,"Omega= ",50(1x,i3))')(indiomreal(iomind,ip)
-     &                              ,iomind=1,nomgproc)
-
-            write(6,"(10x,'Angles= ',50(1x,i3))")
-     &           (indangreal(iangproc,ip),iangproc=1,nanguproc)
-            call flush(6)
-
-         enddo
-      enddo
-
-      ncan=0
-      do ielec=1,nelecmax
-      do iom=iommin,iommax
-         ncan=ncan+1
-         do ip=0,nproc-1
-         do iomind=1,nomgproc
-            if(iom.eq.indiomreal(iomind,ip))then
-                ncanproc(ip)=ncanproc(ip)+1
-                ibasproc(ncanproc(ip),ip)=ncan
-                write(6,*)'    in processor= ',ip
-                call flush(6)
-            endif
-         enddo
-         enddo
-      enddo
-      enddo
-**>> coupled processors
-
-      write(6,*)'  coupled Processors '
-      write(6,*)
-      call flush(6)
-
-      ncouprocmax=0
-      do ip=0,nprocdim-1
-         ncouproc(ip)=0
-         do ipc=0,nprocdim-1
-            ifail=0
-            do iomind=1,nomgproc
-            do iomindc=1,nomgproc
-               iom=indiomreal(iomind,ip)
-               iomc=indiomreal(iomindc,ipc)
-               if(iabs(iom-iomc).le.1)ifail=1
-            enddo
-            enddo
-            if(ifail.eq.1)then
-               ncouproc(ip)=ncouproc(ip)+1
-               ipcou(ncouproc(ip),ip)=ipc
-            endif
-         enddo
-         if(ncouproc(ip).gt.ncouprocmax)ncouprocmax=ncouproc(ip)
-
-         write(6,*)' Processor ',ip,' coupled to '
-     &        ,(ipcou(ipc,ip),ipc=1,ncouproc(ip))
-         call flush(6)
-
-      enddo
-      write(6,*)' Max. no. of coupled processors= ',ncouprocmax
-      call flush(6)
-
-      return
-      end subroutine paralelizacion
 
 !--------------------------------------------------
 !--------------------------------------------------

@@ -53,8 +53,8 @@ c! the partition.
       
       call input_grid
       call pot0
-      call  paralelizacion
       call basis
+      call  paralelizacion
       
 !     reading potential
 

@@ -52,7 +52,10 @@
       include "mpif.h"
       integer :: ierror,lmax,i,ip,iparbc,ielec,iom,iomdi,iomat
       integer :: isignexp,isign,ipar,iomtot,ifail,jmin,isi
-      integer :: iomind,j,jjj,jmax2,ijump
+      integer :: iomind,j,jjj,jmax2,ijump,ifailref,iommin_real
+
+
+      ncanmax=(iommax-iommin+1)*nelecmax
 
       allocate(invbc(ncanmax),iombas(ncanmax),j00(ncanmax)
      &       ,jbas(nangu,ncanmax),nojbas(ncanmax),nelebas(ncanmax)
@@ -109,71 +112,95 @@
       jmax2=lmax*2
 
       iparbc=(-1)**j0
-      do ielec=1,nelec
+      ifailref=1
+      iommin_real=iommax
       do iom=iommin,iommax
+      do ielec=1,nelec
          iomdi=iomdiat(ielec)
          iomat=iomatom(ielec)
-         isignexp=(iom-iomdi+Jtot)
+         isignexp=(Jtot)
          isign=1
          if(mod(isignexp,2).ne.0)isign=-1
          ipar=sigdiat(ielec)*sigatom(ielec)*isign
-         iomtot=iom*iomdi*iomat
 
          ifail=0
-c         if(iomtot.eq.0.and.ipar.ne.ipartot)ifail=1
+         if(iom.eq.0)then
+            if(iparity.ne.ipar)ifail=1
+         endif
          if(ifail.eq.0)then
 
-           jmin=j0
-           if(inc.eq.2)then
-           isi=1
-c             isi=(-1.d0)**(iomdi)
-           if(isi*sigdiat(ielec).eq.iparbc)then
-              jmin=0
-           else
-              jmin=1
-           endif
-         endif
-             
- 10      continue
-         if(jmin.lt.iabs(iom-iomat).or.jmin.lt.iabs(iomdi))then
-               jmin=jmin+inc
-               go to 10
-         endif
-
-         ncan=ncan+1
-         invbc(ncan)=(-1)**(jmin+iom-iomat)
-         iombas(ncan)=iom
-         nelebas(ncan)=ielec
-         j00(ncan)=jmin
-
-         if(idproc.eq.0)then
-             write(6,"(' ielec= ',i3,'  Omeg_diat= ',i3,'  Omeg_at= '
-     &                    ,i3, ' Omega= ',i3)")ielec,iomdi,iomat,iom
-         endif
-            
-         do j=1,nangu
-            jjj=jmin+(j-1)*inc
-            if(jjj.le.inc*(nangu-1))then 
-               jbas(j,ncan)=jjj
-               nojbas(ncan)=j
+            jmin=j0
+            if(inc.eq.2)then
+               isi=1
+c              isi=(-1.d0)**(iomdi)
+               if(isi*sigdiat(ielec).eq.iparbc)then
+                  jmin=0
+               else
+                  jmin=1
+               endif
             endif
-         enddo
-         if(idproc.eq.0)write(6,*)"        j's from  ",j00(ncan)
-     &               ,"  to jmax",jbas(nojbas(ncan),ncan)
-     &               ,"  in intervals of ",inc
-         endif                     ! ifail
+             
+ 10         continue
 
-         if(ielec.eq.ielecref)then
-         if(iomref.lt.0.or.iom.eq.iomref)then
-         if(jref.lt.jmin)then
-         write(6,*)' jref < jini for ielecref,iomref=',ielecref,iomref
-         call flush(6)
-         endif
-         endif
-         endif
+            if(jmin.lt.iabs(iom-iomat).or.jmin.lt.iabs(iomdi))then
+                  jmin=jmin+inc
+                  go to 10
+            endif
+
+            ncan=ncan+1
+            write(6,*)'ncan =',ncan
+            invbc(ncan)=(-1)**(jmin+iom-iomat)
+            iombas(ncan)=iom
+            if(iom.lt.iommin_real)iommin_real=iom
+            nelebas(ncan)=ielec
+            j00(ncan)=jmin
+
+            if(idproc.eq.0)then
+                write(6,"(' ielec= ',i3,'  Omeg_diat= ',i3,'  Omeg_at= '
+     &                    ,i3, ' Omega= ',i3)")ielec,iomdi,iomat,iom
+            endif
+            
+            do j=1,nangu
+               jjj=jmin+(j-1)*inc
+               if(jjj.le.inc*(nangu-1))then 
+                  jbas(j,ncan)=jjj
+                  nojbas(ncan)=j
+               endif
+            enddo
+            if(idproc.eq.0)then
+                write(6,*)"        j's from  ",j00(ncan)
+     &               ,"  to jmax",jbas(nojbas(ncan),ncan)
+     &              ,"  in intervals of ",inc
+            endif
+
+            if(ielec.eq.ielecref)then
+               if(iomref.lt.0.or.iom.eq.iomref)then
+                  if(jref.ge.jmin)then
+                     ifailref=0
+                  endif
+               endif
+            endif
+            
+         endif  ! ifail
       enddo  ! iom
       enddo  ! ielec
 
+      if(ifailref.ne.0)then
+         write(6,*)' No channel found for ielecref,iomref,jref='
+     &        ,ielecref,iomref,jref
+         write(6,*)'  check quantum number for reference state!!!'
+         call flush(6)
+!!         stop
+      endif
+
+
+      if(iommin_real.gt.iommin)then
+         write(6,*)' iommin must be set to iommin_real=',iommin_real
+           call flush(6)
+           call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+           stop
+      endif
+      
       if(ncan.eq.0)THEN
            write(6,*)' !!NCAN= ',ncan,' in INPUT !!'
            call flush(6)
@@ -182,6 +209,175 @@ c             isi=(-1.d0)**(iomdi)
       endif
       write(6,'(//,10x,"ncana= ",i4,//)')ncan
 
+      return
+      end subroutine basis
+      
+!--------------------------------------------------
+      subroutine paralelizacion
+!--------------------------------------------------
+      implicit none
+      include "mpif.h"
+      real*8 :: div
+      integer :: ierror,lmax,ip,iparbc,ielec,iom,iomdi,iomat
+      integer :: isignexp,isign,ipar,iomtot,ifail,jmin,isi
+      integer :: i,iang,iangproc,ican,io,iomc,iomind,iomindc
+      integer :: ipang,ipc,ipomg,nnproc,nomg,nprocang
+
+      write(6,*)
+      write(6,*)' Memory allocating among processors, id= ',idproc
+      write(6,*)
+      call flush(6)      
+!--------------------------------
+!  dimensions for parallelization
+!--------------------------------
+      nprocdim=nproc
+      nomgdim=iommax-iommin+1
+      nomg=nomgdim
+      ncanmax=nomg*nelecmax
+      write(6,*)'nprocdim= ',nprocdim,'  nomgdim= ',nomgdim
+      if(nprocdim.le.nomgdim)then
+        if(mod(nomgdim,nprocdim).ne.0)then
+            write(6,*)' no. of Omegas no divisible by nproc'
+            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+            call flush(6)
+            stop
+        endif
+        nomgproc=nomg/nprocdim
+        nomgprocdim=nomgdim/nprocdim
+        nprocang=1
+        nanguproc=nangu
+        nanguprocdim=nangu
+      else
+        if(mod(nprocdim,nomgdim).ne.0)then
+            write(6,*)' no. of nproc no divisible by Omegas'
+            call flush(6)
+            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+            stop
+        endif
+        if(mod(nangu*nomgdim,nprocdim).ne.0)then
+            write(6,*)' no. of angles,Omegas no divisible by nproc'
+            call flush(6)
+            call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+            stop
+        endif
+        nomgproc=1
+        nomgprocdim=1
+        nprocang=nprocdim/nomg
+        nanguproc=nangu/nprocang
+        nanguprocdim=nangu/nprocang
+      endif
+      ncanprocdim=nelecmax*nomgprocdim
+
+      if(nomgproc.gt.nomgprocdim)then
+         write(6,*)'  nomgproc= ',nomgproc,' > nomgprocdim '
+         call flush(6)
+         call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+         stop
+      endif
+
+* index parallel and mpi initialization
+
+        write(6,*)'  allocating indexes '
+        allocate( ncanproc(0:nprocdim-1)
+     &    ,ibasproc(ncanmax,0:nprocdim-1)
+     &    ,indiomreal(nomgprocdim,0:nprocdim-1)
+     &    ,indangreal(nanguprocdim,0:nprocdim-1)
+     &    ,indproc(iommin:iommax,nangu)
+     &    ,ntotproc(0:nprocdim-1)
+     &    , ncouproc(0:nprocdim-1)
+     &    ,ipcou(nprocdim,0:nprocdim-1)
+     &       , stat=ierror)
+
+        nointegerproc_mem=nointegerproc_mem
+     &    +nprocdim*ncanmax*nprocdim
+     &    +nomgprocdim*nprocdim
+     &    +nanguprocdim*nprocdim
+     &    +(iommax-iommin+1)*nangu
+     &    +nprocdim*(nprocdim+2)
+      write(6,*)'nointegerproc_mem= ',nointeger_mem
+      call flush(6)
+
+      if(ierror.ne.0)then
+         write(*,*)" error in initmem for indexes for parallelitation "
+         call flush(6)
+         stop
+      endif
+      do ip=0,nprocdim-1
+         ncanproc(ip)=0
+         ntotproc(ip)=0
+         ncouproc(ip)=0
+         do ican=1,ncanmax
+            ibasproc(ican,ip)=0
+         enddo
+         do io=1,nomgprocdim
+            indiomreal(io,ip)=0
+         enddo
+         do iang=1,nanguprocdim
+            indangreal(iang,ip)=0
+         enddo
+         do nnproc=1,nprocdim
+            ipcou(nnproc,ip)=0
+         enddo
+      enddo
+      do iang=1,nangu
+      do iom=iommin,iommax
+         indproc(iom,iang)=0
+      enddo
+      enddo
+
+* assignment of omega's and iang's to different processors
+
+      write(6,*)'  Omegas/Angles per procesor '
+      call flush(6)
+
+      ip=-1
+      do ipomg=1,nomgdim/nomgproc
+         do ipang=1,nangu/nanguproc
+            ip=ip+1
+
+            do iomind=1,nomgproc
+               iom=iommin+(ipomg-1)*nomgproc+iomind-1
+               indiomreal(iomind,ip)=iom
+            enddo
+
+            iangproc=0
+            do iang=nangu-ipang+1,1,-nprocang
+               iangproc=iangproc+1
+               indangreal(iangproc,ip)=iang
+            enddo
+            write(6,*)' procesor ',ip
+            write(6,'(10x,"Omega= ",50(1x,i3))')(indiomreal(iomind,ip)
+     &                              ,iomind=1,nomgproc)
+
+            write(6,"(10x,'Angles= ',50(1x,i3))")
+     &           (indangreal(iangproc,ip),iangproc=1,nanguproc)
+            call flush(6)
+
+         enddo
+      enddo
+
+!      ncan=0
+!      do ielec=1,nelecmax
+!      do iom=iommin,iommax
+!     ncan=ncan+1
+
+      write(6,*)' ncan = ',ncan 
+      do ican=1,ncan
+         ielec= nelebas(ican)
+         iom=iombas(ican)
+         do ip=0,nproc-1
+         do iomind=1,nomgproc
+            if(iom.eq.indiomreal(iomind,ip))then
+                ncanproc(ip)=ncanproc(ip)+1
+                ibasproc(ncanproc(ip),ip)=ican
+                write(6,*)'    in processor= ',ip
+                call flush(6)
+            endif
+         enddo
+         enddo
+      enddo ! ican
+!     enddo
+!      enddo
       do ip=0,nproc-1
          write(6,*)' ip=',ip,'  ncan_proc= ',ncanproc(ip)
          if(ncanproc(ip).gt.ncanprocdim)then
@@ -193,9 +389,41 @@ c             isi=(-1.d0)**(iomdi)
          endif
       enddo
       
+**>> coupled processors
+
+      write(6,*)'  coupled Processors '
+      write(6,*)
+      call flush(6)
+
+      ncouprocmax=0
+      do ip=0,nprocdim-1
+         ncouproc(ip)=0
+         do ipc=0,nprocdim-1
+            ifail=0
+            do iomind=1,nomgproc
+            do iomindc=1,nomgproc
+               iom=indiomreal(iomind,ip)
+               iomc=indiomreal(iomindc,ipc)
+               if(iabs(iom-iomc).le.1)ifail=1
+            enddo
+            enddo
+            if(ifail.eq.1)then
+               ncouproc(ip)=ncouproc(ip)+1
+               ipcou(ncouproc(ip),ip)=ipc
+            endif
+         enddo
+         if(ncouproc(ip).gt.ncouprocmax)ncouprocmax=ncouproc(ip)
+
+         write(6,*)' Processor ',ip,' coupled to '
+     &        ,(ipcou(ipc,ip),ipc=1,ncouproc(ip))
+         call flush(6)
+
+      enddo
+      write(6,*)' Max. no. of coupled processors= ',ncouprocmax
+      call flush(6)
+
       return
-      end subroutine basis
-      
+      end subroutine paralelizacion
 !--------------------------------------------------
       subroutine angular_functions
 !--------------------------------------------------

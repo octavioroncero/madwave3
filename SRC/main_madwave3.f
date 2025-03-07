@@ -127,14 +127,16 @@ c! the partition.
 
       call input_grid
       call ini_absorcion
-      call  paralelizacion
+!      call  paralelizacion
       call pot0
 
 !     determining basis
 
       call basis
       
-! reactants and products functions calculation
+      call  paralelizacion
+      
+!     reactants and products functions calculation
 
       call angular_functions
 
@@ -661,7 +663,7 @@ c! the partition.
             iiiv=ivfile
             do ielec=1,nelec
                S2nobis=0.d0
-            do iv=nvini,noBCstates(jini,iele)
+            do iv=nvini,noBCstates(jini,ielec)
                iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
                rotdistri(:)=0.d0
                do ican=1,ncan

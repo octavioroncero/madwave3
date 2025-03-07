@@ -44,6 +44,7 @@
 **       the potential matrix (for several states) is provided     **
 **            externally as in the input of the example            **
 *********************************************************************
+      
       use mod_gridYpara_01y2
       use mod_pot_01y2
       use mod_baseYfunciones_01y2
@@ -73,12 +74,15 @@ c! the partition.
 
       call input_grid
       call ini_absorcion
-      call  paralelizacion
+!      call  paralelizacion
       call pot0
 
 !     determining basis
 
       call basis
+      
+      call  paralelizacion
+      
 
 !     reactants and products functions calculation
 
@@ -115,8 +119,11 @@ c! the partition.
       nnbastotproc=nbastotproc
       if(idproc.eq.0)then
          write(6,*)'  Lanczos initialization'
+         write(6,*)idproc,nntotproc,nnbastotproc
          call flush(6)
       endif
+
+      
 
       call initia_lanzvec(rflanzproc,nntotproc,nnbastotproc)
 
@@ -279,15 +286,11 @@ c! the partition.
 *     * for eigenvalues and eigenvectors *
 *     ************************************
 
-      do itotp=1,nnbastotproc
-         rflanzproc(itotp,0)=0.d0
-         rflanzproc(itotp,1)=0.d0
-         rflanzproc(itotp,2)=0.d0
-      enddo
+      rflanzproc(:,:)=0.d0
 
       do itotp=1,ntotproc(idproc)
 
-         call indiproc(itotp,icanp,ielec,iom,iangp,ir,ir1,ir2)    
+         call indiproc(itotp,icanp,ielec,iom,iangp,ir,ir1,ir2)
          if(vvv(ir,iangp,ielec,ielec).lt.Emax_lanzini)then
             rflanzproc(itotp,2)=1.d0
          endif
@@ -299,6 +302,8 @@ c! the partition.
       do i=1,ntotproc(idproc)
          xx=xx+rflanzproc(i,2)*rflanzproc(i,2)
       enddo
+!      write(6,*)idproc,ntotproc(idproc),xx
+!      call flush(6)
 
       call MPI_REDUCE(xx,xx_tot,1,MPI_REAL8,MPI_SUM
      &                             ,0,MPI_COMM_WORLD,ierr)
