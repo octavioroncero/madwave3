@@ -22,7 +22,7 @@
       real*8 ::  vcutmax  ,radcutmax  ,rotcutmax
 * pot
       integer :: nomaxV,maxpoint
-      integer :: nelec,radau
+      integer :: nelec,radau,NO_ref_energy
       integer,allocatable :: iomdiat(:),iomatom(:)
       real*8, allocatable :: sigdiat(:),sigatom(:)
       real*8, allocatable :: VVV(:,:,:,:)
@@ -57,6 +57,7 @@
       namelist /inputpotmass/system,xm1,xm0,xm2
      &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
      &     ,radau,R1inf_radial_functions,R2inf_radial_functions
+     &     ,No_ref_energy
 
 
          write(6,'(40("_"),/,10x,"Pot_mod",/,40("_"))')
@@ -64,6 +65,7 @@
          radau=0
          R1inf_radial_functions=100.d0
          R2inf_radial_functions=100.d0
+         NO_ref_energy=1
          read(10,nml = inputpotmass)
          write(6,'(80("-"),/,10x
      &      ,"Mass and pot determination for 01+2= ",a20

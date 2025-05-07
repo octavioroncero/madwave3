@@ -553,7 +553,7 @@ c-----> end checking grids
 !                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
                          xxx=bndvec(ir1,ir2,iang,iomini,1)
                          rpaq0(i)=rpaq0(i)+xxx*y123*x123
-                         xnormbnd=xnormbnd+xxx*xxx
+                         xnormbnd=xnormbnd+rpaq0(i)*rpaq0(i)
 
                         endif
                      enddo

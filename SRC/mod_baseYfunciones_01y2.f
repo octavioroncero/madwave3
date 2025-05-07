@@ -750,11 +750,14 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
          else
             ediatref=0.d0
          endif
-           
+
+         if (NO_ref_energy == 0) then
+            ediatref=0.d0
+         end if
          write(6,*)' reference energy in reactants= '
      &                                  ,ediatref/conve1/ev2cm
-
-         if(idproc.eq.0)then
+      
+         if (idproc == 0) then
          open(10,file='func/eref',status='new')
          write(10,*)ediatref
          close(10)

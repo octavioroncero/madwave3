@@ -74,19 +74,23 @@
          open(10,file='input.dat',status='old')
          read(10,nml = inputgridbase)
          close(10)
-         iommaxprod=min0(Jtot,jmaxprod)
          open(10,file='input.dat',status='old')
          read(10,nml = inputtime)
          close(10)
+
          open(10,file='input.dat',status='old')
          read(10,nml = inputcol)
          close(10)
          open(10,file='input.dat',status='old')
          read(10,nml = inputflux)
          close(10)
+         iommaxprod=-1
          open(10,file='input.dat',status='old')
          read(10,nml = inputprod)
          close(10)
+         if(iommaxprod == -1)then
+            iommaxprod = min0( Jtot, jmaxprod)
+         end if
          Emincut_prod=Emincut_prod_eV*8065.5*conve1
          write(6,*)' Emincut_prod= ',Emincut_prod
          open(10,file='input.dat',status='old')

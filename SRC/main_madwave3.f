@@ -92,6 +92,7 @@
       use mod_Hphi_01y2
       use mod_flux_01y2
       use mod_coortrans01_02
+      use mod_PsiE_01y2
       
       implicit none
       include "mpif.h"     
@@ -185,6 +186,10 @@ c! the partition.
 !     initialize total flux quantities
 
       call ini_flux
+
+!     initialize PsiE analysis
+
+      call input_PsiE
       
 ! for flux on 02 diatomics in collisions (iphoto=0) of photodissociation (iphoto>0)
       if(iprod.eq.2.and.npun1.gt.1)then
@@ -325,6 +330,9 @@ c! the partition.
                call prodcvj
             endif
             call check(time,xnorm1tot,it,iloop)
+            if(nofe.gt.0)then
+               call funE(it)
+            endif
 
             if(idproc == 0)then
               if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
@@ -353,6 +361,9 @@ c! the partition.
          if( iwrt_wvp == 1)then
            iloop00=iloop
            call plot_wvp(iloop00)
+         endif
+         if(nofe.gt.0)then
+            call plot_zfe(iloop00)
          endif
          if(idproc == 0)then
            if(iphoto.ge.1.or.iprod.eq.1)then

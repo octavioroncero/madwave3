@@ -17,13 +17,14 @@ pot=../SRC
       mpif77 -c  -O3  $dir/mod_flux_01y2.f
       mpif77 -c  -O3  $dir/mod_coortrans01_02.f
       mpif77 -c  -O3  $dir3/mod_lanczos_01y2.f
+      mpif77 -c  -O3  $dir/mod_PsiE_01y2.f
 
 ######################  mad3.out
 rm mad3.out
 
 mpif77 -O3 -o mad3.out  mod_colini_01y2.o  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
        mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o \
-       mod_absorcion_01y2.o mod_flux_01y2.o mod_coortrans01_02.o\
+       mod_absorcion_01y2.o mod_flux_01y2.o mod_coortrans01_02.o mod_psie_01y2.o\
        $dir/main_madwave3.f $dir/liboctdyn.f \
        $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f\
  -lfftw3

@@ -7,7 +7,7 @@ AUX_DIR=$(SRC_DIR)/AUXILIARy-CODES/
 LANZ_DIR=$(SRC_DIR)/bound-lanz/
 PHOTO_DIR=$(SRC_DIR)/photo/
 
-MODS=$(addprefix $(SRC_DIR), mod_gridYpara_01y2.f mod_pot_01y2.f mod_baseYfunciones_01y2.f mod_Hphi_01y2.f mod_photoini_01y2.f mod_colini_01y2.f mod_absorcion_01y2.f mod_flux_01y2.f mod_coortrans01_02.f) $(LANZ_DIR)/mod_lanczos_01y2.f
+MODS=$(addprefix $(SRC_DIR), mod_gridYpara_01y2.f mod_pot_01y2.f mod_baseYfunciones_01y2.f mod_Hphi_01y2.f mod_photoini_01y2.f mod_colini_01y2.f mod_absorcion_01y2.f mod_flux_01y2.f mod_coortrans01_02.f mod_PsiE_01y2.f) $(LANZ_DIR)/mod_lanczos_01y2.f
 MODS_OBJ=$(MODS:%.f=%.o)
 
 main: mad3 bndgrid
@@ -54,7 +54,7 @@ einstein: $(PHOTO_DIR)/Acoefficient-bound-bound.f $(MODS_OBJ) $(SRC_DIR)/liboctd
 
 
 clean:
-	rm -f *.mod *.o *.out $(SRC_DIR)*.o $(AUX_DIR)*o $(LANZ_DIR)*.o $(PHOTO_DIR)*.o 
+	rm -f *.mod *.o  $(SRC_DIR)*.o $(AUX_DIR)*o $(LANZ_DIR)*.o $(PHOTO_DIR)*.o 
 
 %.o: %.f
 	$(MPI_FC) $(FFLAGS) -c $<  -o $@
