@@ -77,7 +77,7 @@
          open(10,file='input.dat',status='old')
          read(10,nml = inputtime)
          close(10)
-
+         
          open(10,file='input.dat',status='old')
          read(10,nml = inputcol)
          close(10)
