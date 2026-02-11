@@ -91,7 +91,8 @@ c         if(ieee_is_nan(espectro))espectro=0.d0
           espectro_au=espectro*xnorm/(pi*hbr*zot2au)   ! in units of 1/Energy
           enorm=enorm+espectro_au/xnorm
           Xsection_au=CSconstant_au*ephoton_au*espectro_au
-          write(6,'(20(1x,e15.7))')ee,espectro,Xsection_au,ephoton_au
+          write(6,'(20(1x,e15.7))')ee,espectro*xnorm
+     &                          ,Xsection_au,ephoton_au
      &                          ,espectro_au,CSconstant_au
        enddo
        write(6,*)'  integral= ',enorm*Estep/au2eV
