@@ -25,6 +25,7 @@
 
       implicit none
       integer :: imem,iE,ierror
+      logical :: exists
 *********************************************************
       namelist /inputPsiE/nofe,file_resonancesE
 *********************************************************
@@ -36,7 +37,7 @@
          write(6,*)'  grid and basis data'
          write(6,*)'  -------------------'
          open(10,file='input.dat',status='old')
-         read(10,nml = inputPsiE) 
+         read(10,nml = inputPsiE,err=999) 
          write(6,nml = inputPsiE)
          call flush(6)
          close(10)
@@ -81,8 +82,10 @@
       end if                    ! iphoto > 0
       
       return
+ 999  write(6,*)'  no PsiE information, skipping !!'
+      call flush(6)
+      close(10)
       end
-
                  
 ***************************funE  ******************************
 
@@ -128,8 +131,10 @@
       implicit none
       double precision :: fun(npun1,nangu), funtot(npun1,nangu)
       double precision :: funrp(npun2,nangu), funtotrp(npun2,nangu)
+      double precision :: funr1r2(npun1,npun2,nangu)
+     &                   , funr1r2tot(npun1,npun2,nangu)
       integer :: ifE,jr2,jelec,iang,nnn,iloop,ierr
-      integer :: i,icanp,ielec,iom,iangp,ir,ir1,ir2
+      integer :: i,icanp,ielec,iom,iangp,ir,ir1,ir2,jom
       double precision :: r2,r1,sum,cang
       
       include "mpif.h"
@@ -227,6 +232,42 @@
             close(10)
          endif
 
+
+         do jom=iommin,iommax
+
+            funr1r2(:,:,:)=0.d0
+            funr1r2tot(:,:,:)=0.d0
+            do i=1,ntotproc(idproc)
+               call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
+               iang=indangreal(iangp,idproc)
+               if(ielec.eq.jelec.and.iom.eq.jom)then
+                funr1r2(ir1,ir2,iang)=funr1r2(ir1,ir2,iang)
+     &               +dreal(zfe(i,ife)*dconjg(zfe(i,ife)))
+            endif
+         enddo
+
+         nnn=npun1*npun2*nangu
+         call MPI_REDUCE(funr1r2,funr1r2tot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+            
+            
+            if(idproc.eq.0)then
+               write(name,'("fer1r2",i2.2,".elec",i2.2,".iom",i2.2)')
+     &                            ife,jelec,jom
+               open(10,file=name,status='unknown')
+               do ir1=1,npun1,n1plot
+                  r1=rmis1+dble(ir1-1)*ah1
+                  do ir2=1,npun2,n2plot
+                     r2=rmis2+dble(ir2-1)*ah2
+                     write(10,'(2000(1x,e15.7))')r1,r2
+     &                 ,(funr1r2tot(ir1,ir2,iang),iang=1,nangu)
+                  enddo
+                  write(10,'()')
+               enddo
+               close(10)
+            endif
+
+         enddo
 
       enddo ! ielec
       enddo ! ife

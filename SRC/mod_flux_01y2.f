@@ -24,8 +24,10 @@
       complex*16,allocatable :: zfR1flux(:,:,:),zR(:),zdR(:)      
       integer,allocatable :: ir1flux(:)
       integer,allocatable :: indangflux(:),indcanflux(:),indr2flux(:)
+      real*8,allocatable :: potiflux(:)
       complex*16, allocatable :: zCR(:,:), zCdR(:,:)
       real*8,allocatable :: S2prodtot(:),S2prod(:),reacfct(:)
+      real*8,allocatable :: S2prodelec(:,:),S2prodelectot(:,:)
       real*8,allocatable :: apaqini(:)
       
 ! flux in individual channels in the 01  + 2 reactant channel
@@ -92,6 +94,8 @@
       allocate(rpopi(nvini:nvmax,jini:jmax,ncanmax)
      &             ,funreac(nanguprocdim,npun1,ncanmax)  
      &             ,S2prodtot(netot),S2prod(netot)
+     &     ,S2prodelectot(netot,nelecmax)
+     &     ,S2prodelec(netot,nelecmax)
      &             ,reacfct(netot)
      &             ,zfR2(npun1,nanguprocdim,ncanmax)
      &             ,zCkcheby(netot),apaqini(netot)
@@ -189,6 +193,7 @@
      &             ,indangflux(nfluxprocdim)
      &             ,indcanflux(nfluxprocdim)
      &             ,indr2flux(nfluxprocdim)
+     &             ,potiflux(nfluxprocdim)
      &       , stat=ierror)
          if(ierror.ne.0)then
            write(*,*)" error in initmem for flux "
@@ -218,6 +223,7 @@
          zCR(:,:)=dcmplx(0.d0,0.d0)
          zCdR(:,:)=dcmplx(0.d0,0.d0)
          S2prodtot(:)=0.d0
+         S2prodelectot(:,:)=0.d0
          reacfct(:)=0.d0
 
          zfR2(:,:,:)=dcmplx(0.d0,0.d0)
@@ -233,6 +239,7 @@
            
                do ican_proc=1,ncanproc(ip)
                   ican=ibasproc(ican_proc,ip)
+                  ielec=nelebas(ican)
                   do ir=1,npunreal(iang)
                      ir1=indr1(ir,iang)
                      ir2=indr2(ir,iang)
@@ -241,6 +248,7 @@
                         indangflux(iflux)=iang
                         indcanflux(iflux)=ican
                         indr2flux(iflux)=ir2
+                        potiflux(iflux)=VVV(ir,iang_proc,ielec,ielec)
                      endif
                   enddo
                enddo ! ican_proc
@@ -536,7 +544,6 @@
        etotmax=ekinmax
        estep=(etotmax-etotmin)/dble(netot-1)
 
-
          if(idproc.eq.0)then
                   write(6,*)' Total ener. for S^2 in products (eV): '
      &             ,etotmin/conve1/8065.5d0,etotmax/conve1/8065.5d0
@@ -544,8 +551,12 @@
                
          do ie=1,netot
             etotS2(ie)=etotmin+dble(ie-1)*estep
-!pru            reacfct(ie)=0.5d0/pi/xm1reac
-            reacfct(ie)=0.25d0/pi/xm1reac
+!     pru            reacfct(ie)=0.5d0/pi/xm1reac
+            if(xm2.lt.1d-3)then
+               reacfct(ie)=hbr/xm1reac
+            else         
+               reacfct(ie)=0.25d0/pi/xm1reac
+            end if
 ** reactants
             do iele=1,nelec
             do iv=nvini,nvmax
@@ -622,10 +633,18 @@ c      endif
                      do ie=1,netot
                         zexpo=zCkcheby(iE)
                         if(iphoto.eq.0.and.iprod.eq.1)then
-                     if(ikcheb.lt.kminelastic)zexpo=dcmplx(0.d0,0.d0)
+                        if(ikcheb.lt.kminelastic)zexpo=dcmplx(0.d0,0.d0)
                         endif
-                        zCR(ie,iflux)=zCR(ie,iflux)+zexpo*zR(ir2)
-                        zCdR(ie,iflux)=zCdR(ie,iflux)+zexpo*zdR(ir2)
+
+                        if(etotS2(ie).gt.potiflux(iflux))then
+                  
+                           zCR(ie,iflux)=zCR(ie,iflux)+zexpo*zR(ir2)
+                           zCdR(ie,iflux)=zCdR(ie,iflux)+zexpo*zdR(ir2)
+                           
+                        end if                  
+!                        write(69,*)etotS2(ie)/conve1/8065.5d0
+!     &            , indangflux(iflux),indcanflux(iflux),indr2flux(iflux)            
+!     &                        ,zexpo,zCR(ie,iflux),zCdR(ie,iflux)
                      enddo
                   endif
                   endif
@@ -762,23 +781,36 @@ c      endif
       use mod_absorcion_01y2
       implicit none
       include "mpif.h"
-      integer :: ie,iflux,ierr
+      integer :: ie,iflux,ierr,ican,ielec,nnn
+      double precision :: xxx
       
 *  total flux to products
-
+      S2prodelec(:,:)=0.d0
+      S2prodelectot(:,:)=0.d0
       do ie=1,netot
          S2prod(ie)=0.d0          
          S2prodtot(ie)=0.d0          
          do iflux=1,nfluxproc(idproc)
             S2prod(ie)=S2prod(ie)
      &                +dimag(dconjg(zCR(ie,iflux))*zCdR(ie,iflux))
+            ican=indcanflux(iflux)
+            ielec=nelebas(ican)
+            S2prodelec(ie,ielec)=S2prodelec(ie,ielec)
+     &                +dimag(dconjg(zCR(ie,iflux))*zCdR(ie,iflux))
          enddo
-         
+
          S2prod(ie)=S2prod(ie)*reacfct(ie)/ah1
+         do ielec=1,nelec
+            S2prodelec(ie,ielec)=S2prodelec(ie,ielec)*reacfct(ie)/ah1
+         enddo
       enddo
 
       call MPI_REDUCE(S2prod,S2prodtot,netot,MPI_REAL8,MPI_SUM
-     &                             ,0,MPI_COMM_WORLD,ierr)
+     &     ,0,MPI_COMM_WORLD,ierr)
+
+      nnn=netot*nelecmax
+      call MPI_REDUCE(S2prodelec,S2prodelectot,nnn,MPI_REAL8,MPI_SUM
+     &     ,0,MPI_COMM_WORLD,ierr)
       return
       end subroutine  totalflux
 !--------------------------------------------------

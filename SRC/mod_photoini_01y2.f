@@ -96,7 +96,10 @@
             enddo
 
             write(10,*)ir1,ir2
-     &              ,((dip(iq,ielec),ielec=1,nelecmax),iq=-1,1)
+     &           ,((dip(iq,ielec),ielec=1,nelecmax),iq=-1,1)
+            write(68,*)rpeq,(dip(1,ielec),ielec=1,nelec)
+            write(69,*)rpeq,(dip(0,ielec),ielec=1,nelec)
+            
          enddo                  ! ir
          close(10)
       enddo  ! iang_proc
@@ -163,11 +166,13 @@
       implicit none
       include "mpif.h"
       character*50 :: filegrid,filebnd
+      integer,parameter :: max_Omega=5
 
       real*8, allocatable :: xnormOmg(:),xnormOmgProc(:)
       integer :: ierror,j2,ifail,iom,ijk,iomini,iq,i,it
       integer :: icanp,ielec,iangp,ir,ir1,ir2,ierr,nnn,it0,indt,iloop
       real *8 :: ssign,yyy,coef,coef2,xxx,xnorm,xnormtot,xx,yy
+      integer :: max_iom
 
 *********************************************************
       namelist /inputbnd/Jtotini,iparini,nvbound,nprocbnd,maxbnddim
@@ -184,7 +189,9 @@
       call flush(6)
       close(10)
 
-      allocate(factresj(0:Jtotini,-1:1,iommin:iommax)
+      max_iom=max0(Jtot,Jtotini)
+      max_iom=max0(max_iom,max_Omega)
+      allocate(factresj(0:max_iom,-1:1,0:max_iom)
      &     ,xnormOmg(iommin:iommax),xnormOmgProc(iommin:iommax)
      &     , stat=ierror)
 
@@ -202,11 +209,11 @@
          factresj(:,:,:)=0.d0
          j2=1
          ifail=0
-         do iom=iommin,iommax
+         do iom=0,max_Omega
             ijk=0
             call factorial
          if(iparini*((-1.d0)**(Jtotini)).lt.0.d0)ijk=1
-         do iomini=ijk,Jtotini
+         do iomini=0,max_Omega
          do iq=-1,1
             ssign=(-1.d0)**dble(iom+iq)
             yyy=1.d0
@@ -214,12 +221,15 @@
             if(iomini.eq.0)yyy=yyy/dsqrt(2.d0)
             if(iparity*iparini.ge.0)yyy=0.d0
 
-            call tresj(Jtotini,j2,Jtot,iomini,iq,-iom,coef)
-            call tresj(Jtotini,j2,Jtot,-iomini,iq,-iom,coef2)
-            xxx=coef+coef2*dble(iparini*((-1)**Jtotini))
-            factresj(iomini,iq,iom)=ssign*yyy*xxx
-            if(dabs(factresj(iomini,iq,iom)).gt.1.d-10)ifail=ifail+1
-         write(6,*)iomini,iq,iom,factresj(iomini,iq,iom),ssign,yyy,xxx
+            if(iomini.le.Jtotini.and.iom.le.Jtot)then
+               call tresj(Jtotini,j2,Jtot,iomini,iq,-iom,coef)
+               call tresj(Jtotini,j2,Jtot,-iomini,iq,-iom,coef2)
+               xxx=coef+coef2*dble(iparini*((-1)**Jtotini))
+               factresj(iomini,iq,iom)=ssign*yyy*xxx
+               if(dabs(factresj(iomini,iq,iom)).gt.1.d-10)ifail=ifail+1
+               write(6,*)iomini,iq,iom,factresj(iomini,iq,iom)
+     &              ,ssign,yyy,xxx
+            endif
          enddo
          enddo
          enddo
@@ -267,7 +277,9 @@
       write(6,*)' '
 
       if(iphoto.eq.1.or.iphoto.eq.2)then
-         if(igridbnd.eq.1)then
+         if(xm2.lt.1.d-3)then
+              call dip_bnddiatomic
+         elseif(igridbnd.eq.1)then
               call dip_bndgrid
          else
               call dip_bndbase
@@ -298,7 +310,14 @@
 
 
       call MPI_REDUCE(xnorm,xnormtot,1,MPI_REAL8,MPI_SUM
-     &                             ,0,MPI_COMM_WORLD,ierr)
+     &     ,0,MPI_COMM_WORLD,ierr)
+
+      if(idproc.eq.0)then
+       write(6,*)'before bcast, dip_bnd: xnorm total = ',xnormtot
+      end if
+      
+      call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      
       call MPI_BCAST(xnormtot,1,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
 
       write(6,*)' dip_bnd: xnorm total = ',xnormtot,'  renormalizing'
@@ -369,6 +388,90 @@ c            write(ifileauto,*)0,1.d0
   
       return
       end subroutine dip_bnd
+!--------------------------------------------------
+!--------------------------------------------------
+      subroutine dip_bnddiatomic
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_Hphi_01y2
+      implicit none
+      include "mpif.h"
+ 
+      integer :: ielecbndmin,iombndmin,ibnd,ijk,iiicanp,iii
+      integer :: iiir,iangp,ierror,i,iang,icanp,ielec,ierr
+      integer :: iom,iomini,iq,ir,ir1,ir2,nangubnd,j2,ifail
+      integer :: ivX,it,it0,indt,iloop,nnn,ifile
+      real*8 :: x123,xnorm,xnormtot,y123,ssign
+      real*8 :: yyy,xxx,coef,coef2,xx,yy,xnormbnd,xnormbnd_tot
+
+
+* reading bnd 
+      write(6,*)'   using bound nvbound= ',nvbound
+     &   ,' ielecref= ',ielecref,' Jtotini= ',Jtotini
+     &      ,' files in ../func/bcwf  read in radial_functions01_read'
+          write(6,*)'      calculated with potini.f  '
+          write(6,*)'           in the same grid 1d-grid in r1 !!!!!'
+          write(6,*)' '
+          write(6,*)'  Making jini=jmax=Jtot'
+          jini=Jtot
+          jmax=Jtot
+
+          xnormbnd=0.d0
+**>> Using diatomic states calculated in potini, and read radial_functions01_read
+
+
+          energy_ini_eV=ediat(nvbound,jtotini,ielecref)
+
+c-----> end checking grids
+
+
+           write(6,*)' building initial wave packet for iphoto= ',iphoto
+           call flush(6)
+
+           do i=1,ntotproc(idproc)
+               call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
+               iang=indangreal(iangp,idproc)
+               iom=iomdiat(ielec)
+               if(iphoto.eq.2)then
+
+                     if(ielec.eq.ielecref)then
+                        xxx=fd(ir1,nvbound,Jtotini,ielecref)
+                        rpaq0(i)=rpaq0(i)+xxx
+                        xnormbnd=xnormbnd+xxx*xxx
+                     endif
+               elseif(iphoto.eq.1)then
+                     iomini=iomdiat(ielecref)
+                     iq=iom-iomini
+                     if(iabs(iq).le.1)then
+                         y123=dipol(ir,iang,ielec,iq)
+                         x123=factresj(iomini,iq,iom)
+                         xxx=fd(ir1,nvbound,Jtotini,ielecref)
+                         rpaq0(i)=rpaq0(i)+xxx*y123*x123
+                         xnormbnd=xnormbnd+xxx*xxx
+                     endif
+                  endif
+
+                  ifile=100+ielec
+                  write(ifile,*)rmis1+dble(ir1-1)*ah1
+     &                     ,fd(ir1,nvbound,Jtotini,ielecref)
+     &                     ,y123, rpaq0(i)
+            enddo  ! i
+
+
+      call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+
+      write(6,*)' In dip_bnddiatomic norm bound state= ',xnormbnd
+     &        ,'  in proc= ',idproc
+      nnn=1
+      call MPI_REDUCE(xnormbnd,xnormbnd_tot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(xnormbnd_tot,nnn,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+
+      write(6,*)'dip_bnddiatom total norm bound state= ',xnormbnd_tot
+      
+      return
+      end subroutine dip_bnddiatomic
 !--------------------------------------------------
 !--------------------------------------------------
       subroutine dip_bndgrid
@@ -553,12 +656,11 @@ c-----> end checking grids
 !                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
                          xxx=bndvec(ir1,ir2,iang,iomini,1)
                          rpaq0(i)=rpaq0(i)+xxx*y123*x123
-                         xnormbnd=xnormbnd+rpaq0(i)*rpaq0(i)
+                         xnormbnd=xnormbnd+xxx*xxx
 
                         endif
                      enddo
                   endif
-
                endif  ! ir1,ir2,ielec
             enddo  ! i
 

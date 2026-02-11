@@ -1,0 +1,325 @@
+      program AS
+*********************************************************************
+**                      program AS                                 **
+**     version 1    ,  Adiabatic_statistical   2024                **
+**                 parallelized for MPI                            **
+**                                                                 **
+**  Calculates A+BC bound states at each R=R_2                     **
+**               b) in reactant Jacobi coordinates (iprod=2)       **
+**                  with 
+**                                                                 **
+**       including several coupled diabatic electronic states      **
+**                                                                 **
+**       Using  Jacobi coordinates                                 **
+**                                                                 **
+**                                        1                        **  
+**                                        ^                        **
+**                      R=R_2             |                        **
+**                  2<--------------------| r=R_1                  **
+**                                        |                        **
+**                                        |                        **
+**                                        0                        **
+**                                                                 **
+**                                                                 **
+**       For a general value of Jtot  in a body-fixed frame        **
+**      with the z-axis along the R=R_2 reactant Jacobi vector.    **
+**                                                                 **
+**   Input
+**  ------
+**             The angular kinetic term is evaluated               **
+**            using a DVR  method for each Omega value             ** 
+**                                                                 **
+**                           units: zots                           **
+**       this program uses the files:                              **
+**       the potential matrix (for several states) is provided     **
+**            externally as in the input of the example            **
+*********************************************************************
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_HphiR_01y2
+      use mod_lanczos_01y2
+      implicit none
+      integer :: ntotR2,ntotR2_proc,i,nnn
+      integer :: ierr,nntotproc,nnbastotproc,iv,n1,n2,ival
+      double precision :: xn,xnorm,ener,enertot,ediag,uno,r2
+      integer :: ichan,j,jchan,nvecplot,ierror
+
+      include "mpif.h"
+
+c! Initialize MPI environment and get proc's ID and number of proc in
+c! the partition.
+
+      call MPI_INIT(ierr)
+      call MPI_COMM_RANK(MPI_COMM_WORLD, idproc, ierr)
+      call MPI_COMM_SIZE(MPI_COMM_WORLD, nproc, ierr)
+      write(name,'("sal.id",i3.3)')idproc
+      open(6,file=name,status='unknown')
+      write(6,'(40("="),//)')
+      write(6,'(10x,"AS program of madwave3 version 6 ",//)')
+      write(6,*)' output of proc. idproc= ',idproc,' of nproc= ',nproc
+      write(6,'(/,40("="),//)')
+
+!     initialization of data
+
+      call input_grid
+!      call ini_absorcion
+      call pot0
+
+!     determining basis
+
+      call basis
+      call paralelizacion
+      
+!     reactants and products functions calculation
+
+      call angular_functions
+      
+      call radial_functions01_read
+
+      call ordering_channels
+
+      
+!     reading potential
+
+      call pot2
+      
+!    dimensioning vectors for propagation,
+!     calculating kinetic energy terms, etc
+!    to evaluate H phi in a radial/angular grid & basis for Omega/electronic
+
+      call Tradial1
+      write(6,*) 'end initialization H'
+      call flush(6)
+
+!     Lanczos dimensions initialization
+ 
+        write(6,*) 'start lanczos'
+        call flush(6)
+        
+        call set_lanczos
+        
+        write(6,*) 'end Lanczos initialization'
+        call flush(6)
+
+!-----------------------------------------------------------
+!     loop in ir2=1,npun2 to evaluate adiabatic potentials !
+!-----------------------------------------------------------
+
+
+        allocate(Hmat(nchan,nchan),eigen(nchan),T(nchan,nchan)
+     &          ,Hmattot(nchan,nchan))
+      if(idproc.eq.0)then
+         open(15,file='potdia.dat',status='new')
+         open(16,file='potadia.dat',status='new')
+      endif
+      do ir2_adiabatic=1,npun2!,1,-1
+         r2=rmis2+dble(ir2_adiabatic-1)*ah2
+         write(6,*)' r2= ',r2
+         call flush(6)
+
+         call V_Rg_fixed
+! forming Hmatrix with channels
+          Hmat(:,:)=0.d0
+          Hmattot(:,:)=0.d0
+          do ichan=1,nchan
+
+             call set_rpaq_funchan(ichan)
+!             call HphiR
+             call Hmatrix(rpaqproc,rHpaqrec
+     &               ,ntotRproc(idproc),nbastotRproc)
+             do jchan=ichan,nchan
+                call set_rpaq_funchan(jchan)
+                xn=0.d0
+                do i=1,ntotRproc(idproc)
+                   xn=xn+rpaqproc(i)*rHpaqrec(i)
+                end do
+                Hmat(ichan,jchan)=xn
+                Hmat(jchan,ichan)=xn
+             end do
+          end do
+
+          nnn=nchan*nchan
+          call MPI_REDUCE(Hmat,Hmattot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+
+          if(idproc.eq.0)then
+             write(15,'(10000(1x,e20.10))')r2
+     &            ,(Hmattot(i,i)/conve1/8065.5d0/27.211,i=1,nchan)
+             call flush(15)
+             call diagon(Hmattot,nchan,nchan,T,eigen)
+
+             write(16,'(10000(1x,e20.10))')r2
+     &       ,(eigen(i)/conve1/8065.5d0/27.211,i=1,nchan)
+             call flush(16)
+          endif
+                
+          
+!---------------------------------------------------
+      end do ! ir2_adiabatic
+*****************************
+      call MPI_FINALIZE(ierr)
+      
+      stop
+      end
+      
+*********************** initialanzvec  **********************************
+
+      subroutine initia_lanzvec(rflanzproc,ntotR2_proc
+     &                          ,nnbastotproc)
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_absorcion_01y2
+      use mod_HphiR_01y2
+      use mod_lanczos_01y2, only:Emax_lanzini
+      implicit none
+
+      integer :: i,nntot,nnbastotproc,ntotR2_proc
+      double precision :: xx,xx_tot,yyy
+      integer :: itotp,icanp,ielec,iom,iangp,ir,ir1,ir2,ierr
+      integer :: iang_proc,iang,ican_proc,ican,j,iv
+      
+      double precision :: rflanzproc(nnbastotproc,0:2)
+
+      include "mpif.h"
+
+*     ************************************
+*     * Initialization of lanczos vector *
+*     * for eigenvalues and eigenvectors *
+*     ************************************
+
+      rflanzproc(:,:)=0.d0
+
+      write(6,*)'ini: ',nanguproc,ncanproc(idproc),npun1,jmax,nvmax
+      call flush(6)
+      xx=0.d0
+      do iang_proc=1,nanguproc
+         iang=indangreal(iang_proc,idproc)
+         do ican_proc=1,ncanproc(idproc)
+            ican=ibasproc(ican_proc,idproc)
+            ielec=nelebas(ican)
+            iom=iombas(ican)
+            do ir1=1,npun1
+               itotp=indtotRproc(ir1,ican_proc,iang_proc,idproc)
+!               do j=jini,jmax
+!                  do iv=nvini,nvmax
+!                     yyy=Djprod(iang,j,ielec,iom)*fd(ir1,iv,j,ielec)
+!                     rflanzproc(itotp,2)=rflanzproc(itotp,2)+dabs(yyy)
+!                  enddo
+!               enddo
+              if(potRg_fixed(ir1,iang_proc,ielec,ielec).lt.vcutmax)then
+              rflanzproc(itotp,2)=1.d0
+              endif
+               xx=xx+rflanzproc(itotp,2)*rflanzproc(itotp,2)
+            enddo
+         enddo  
+      enddo
+
+* renormalizing
+
+
+      call MPI_REDUCE(xx,xx_tot,1,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+
+      call MPI_BCAST(xx_tot,1,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+
+      if(dabs(xx_tot).lt.1.d-10)then
+         write(6,*)' --> Norm too low initia_lanzvec <--'
+         call flush(6)
+        stop
+      endif
+
+      do i=1,ntotRproc(idproc)
+          rflanzproc(i,2)=rflanzproc(i,2)/dsqrt(xx_tot)
+      enddo
+
+      return
+      end
+
+
+*************************************************************
+
+      subroutine Hmatrix(eigen,Hu,nntotproc,nnbastotproc)
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_absorcion_01y2
+      use mod_HphiR_01y2
+      implicit none
+      integer :: nntotproc,nnbastotproc
+      double precision :: Hu(nnbastotproc),eigen(nnbastotproc)
+      integer :: i
+
+      include "mpif.h"
+
+      do i=1,nntotproc
+         rpaqproc(i)=eigen(i)
+         rHpaqrec(i)=0.d0
+      enddo
+
+      call HphiR
+
+      do i=1,nntotproc
+         Hu(i)=rHpaqrec(i)
+      enddo
+     
+      return
+      end subroutine Hmatrix
+      
+*************************************************************
+
+      subroutine  plot_Chan_bnd(iv)
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      use mod_HphiR_01y2
+
+      implicit none
+      integer :: iv,ifile_chan_bnd,nnn,ierr,iang,ican,ir1,iom
+      integer :: iang_proc,ican_proc,i
+      real*8 :: r1,gam
+      character*80 :: name_chan_bnd
+      real*8 :: fun(npun1,nangu,iommin:iommax)
+      real*8 :: funtot(npun1,nangu,iommin:iommax)
+      include "mpif.h"
+
+      fun(:,:,:)=0.d0
+      nnn=npun1*nangu*(iommax-iommin+1)
+
+      ifile_chan_bnd=10
+
+      do iang_proc=1,nanguproc
+         iang=indangreal(iang_proc,idproc)
+         do ican_proc=1,ncanproc(idproc)
+            ican=ibasproc(ican_proc,idproc)
+            iom=iombas(ican)
+            do ir1=1,npun1
+               i= indtotRproc(ir1,ican_proc,iang_proc,idproc)
+              fun(ir1,iang,iom)=fun(ir1,iang,iom)+rpaqproc(i)
+            end do
+         end do
+      end do
+
+      call MPI_REDUCE(fun,funtot,nnn,MPI_REAL8,MPI_SUM
+     &                             ,0,MPI_COMM_WORLD,ierr)
+      if(idproc.eq.0)then
+         write(name_chan_bnd,'("bnd.v",i2.2,".ir",i3.3)')
+     &                         iv,ir2_adiabatic
+         open(ifile_chan_bnd,file=name_chan_bnd,status='unknown')
+         do iang=1,nangu
+            gam=cgamma(iang)
+            do ir1=1,npun1
+               r1=rmis1+dble(ir1-1)*ah1
+               write(ifile_chan_bnd,'(100(1x,e20.10))')r1,gam,
+     &              (funtot(ir1,iang,iom),iom=iommin,iommax)
+            enddo
+            write(ifile_chan_bnd,'()')
+         enddo
+         close(ifile_chan_bnd)
+
+      endif
+         
+      
+      return
+      end subroutine  plot_Chan_bnd

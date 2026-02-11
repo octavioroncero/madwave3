@@ -252,12 +252,13 @@
                   yyy=yyy+eexpo*CRP(ie,j,iv,ielec)
                enddo
                rate(j)=rate(j)+yyy*deltaE
-               
+
+               if(rate(j)*fac.lt.1.d-80)rate(j)=0.d0
                ratevib=ratevib+rate(j)
             enddo
             ratetot(itemp)=ratetot(iTemp)+ratevib
             
-            write(10,'(1000(1x,e15.7))')temp
+            write(10,'(1000(1x,e16.7))')temp
      &            ,(rate(j)*fac,j=jinirate,jmaxrate)
 
             write(9,*)temp,ratevib*fac

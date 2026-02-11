@@ -57,21 +57,9 @@
 
       ncanmax=(iommax-iommin+1)*nelecmax
 
-      if(xm2.lt.1.d-3)then
-         allocate(invbc(ncanmax),iombas(ncanmax),j00(ncanmax)
-     &       ,jbas(jmax-jini+1,ncanmax),nojbas(ncanmax),nelebas(ncanmax)
-     &        , stat=ierror)
-         if(iommin.ne.0.or.iommax.ne.0)then
-            write(6,*)' For treating diatomic molecules iommin=iommax=0'
-            call flush(6)
-            stop
-         endif
-
-      else
-         allocate(invbc(ncanmax),iombas(ncanmax),j00(ncanmax)
+      allocate(invbc(ncanmax),iombas(ncanmax),j00(ncanmax)
      &       ,jbas(nangu,ncanmax),nojbas(ncanmax),nelebas(ncanmax)
-     &           , stat=ierror)
-      endif
+     &     , stat=ierror)
 
       nointegerproc_mem=nointegerproc_mem+ncanmax*(4+nangu)
       write(6,*)'norealproc_mem= ',norealproc_mem
@@ -136,7 +124,7 @@
          ipar=sigdiat(ielec)*sigatom(ielec)*isign
 
          ifail=0
-         if(iom.eq.0)then
+         if(iom.eq.0.and.iomdi.eq.0)then
             if(iparity.ne.ipar)ifail=1
          endif
          if(ifail.eq.0)then
@@ -154,7 +142,7 @@ c              isi=(-1.d0)**(iomdi)
              
  10         continue
 
-            if(jmin.lt.iabs(iom-iomat).or.jmin.lt.iabs(iomdi))then
+            if(jmin.lt.iabs(iom-iomdi))then
                   jmin=jmin+inc
                   go to 10
             endif
@@ -171,24 +159,14 @@ c              isi=(-1.d0)**(iomdi)
                 write(6,"(' ielec= ',i3,'  Omeg_diat= ',i3,'  Omeg_at= '
      &                    ,i3, ' Omega= ',i3)")ielec,iomdi,iomat,iom
             endif
-
-            if(xm2.lt.1.d-5)then
-               j=0
-               do jjj=jini,jmax
-                  j=j+1
+            
+            do j=1,nangu
+               jjj=jmin+(j-1)*inc
+               if(jjj.le.inc*(nangu-1))then 
                   jbas(j,ncan)=jjj
                   nojbas(ncan)=j
-               enddo
-
-            else
-               do j=1,nangu
-                  jjj=jmin+(j-1)*inc
-                  if(jjj.le.inc*(nangu-1))then 
-                     jbas(j,ncan)=jjj
-                     nojbas(ncan)=j
-                  endif
-               enddo
-            endif
+               endif
+            enddo
             if(idproc.eq.0)then
                 write(6,*)"        j's from  ",j00(ncan)
      &               ,"  to jmax",jbas(nojbas(ncan),ncan)
@@ -561,7 +539,7 @@ c              isi=(-1.d0)**(iomdi)
       real*8 :: rmis,rfin,ah,rg,ctet,xm,xz,r,rref,be,vasin,xl,eps,spl
       real*8 :: e0,e2,vmean,xnorm,r1,xxx,a,b,vmin,xz1
       integer :: ielec,irmin,ir,j,iv,maxit,ifail,iold,ir1,itry,nchan,kv
-      integer :: ierror,ie,je,jmax_write
+      integer :: ierror,ie,je
 
 * temporal allocation of matrices
 
@@ -601,7 +579,7 @@ c              isi=(-1.d0)**(iomdi)
       rfin=(rmis1+dble(npun1-1)*ah1)/convl
       ah=(rfin-rmis)/dble(npunt-1)
       rg=R2inf_radial_functions/convl
-      ctet=1.d0
+      ctet=-1.d0
       xm=xm1reac*convm
       xz=0.5d0/xm
 
@@ -694,8 +672,7 @@ c              isi=(-1.d0)**(iomdi)
                xz1=2.d0*xm
 
                ifail=-1
-!               if(v(npunt)-alpha(iv+1).gt.0.d0))then
-               if(v(npunt)-alpha(iv+1).gt.1.d-2)then
+               if(alpha(iv+1).lt.v(npunt))then
                   e0=alpha(iv+1)*xz1
                   do ir=1,npunt
                      r=rmis+dble(ir-1)*ah
@@ -774,7 +751,7 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
             ediatref=0.d0
          endif
 
-         if (No_ref_energy == 0) then
+         if (NO_ref_energy == 0) then
             ediatref=0.d0
          end if
          write(6,*)' reference energy in reactants= '
@@ -803,9 +780,8 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
               enddo
               enddo
               close(10)
-           do ielec=1,nelec
-              jmax_write=jini
-               do j=jini,jmax_write
+            do ielec=1,nelec
+               do j=jini,jini
                   write(name,'("wv01-ielec",i2.2,"-j",i2.2,".dat")')
      &                           ielec,j
                   open(10,file=name,status='new')
@@ -1072,16 +1048,12 @@ c            endif
      &     ,T(nelecmax,nelecmax),eigen(nelecmax)
 
       real*8 :: rmis,rfin,ah,rg,ctet,xm,xz,r,xnorm
-      real*8 :: xnormele,xnormele_max
-      integer :: ierror,ir,ie,je,j,iv,ielec,ir2,ielecmax,ivreal
+      integer :: ierror,ir,ie,je,j,iv,ielec,ir2
 
       allocate(ediatprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
      &  ,fdprod(n2prod1,nviniprod:nvmaxprod,jiniprod:jmaxprod,nelecmax)
      &     ,noBCprod(jiniprod:jmaxprod)
-     &     , stat=ierror)
-
-      fdprod(:,:,:,:)=0.d0
-      noBCprod(:)=0
+     &       , stat=ierror)
 
       nointegerproc_mem=nointegerproc_mem+(jmaxprod-jiniprod+1)
       norealproc_mem=norealproc_mem
@@ -1100,7 +1072,7 @@ c            endif
          rmis=rmis2/convl
          ah=ah2/convl
          rg=R1inf_radial_functions/convl
-         ctet=+1.d0
+         ctet=-1.d0
          xm=xm1prod*convm
 
 !b)  potential determination
@@ -1113,21 +1085,14 @@ c            endif
          do ir=1,n2prod1
             r=rmis+dble(ir-1)*ah
             call potelebond(rg,r,ctet,potmat,nelec,nelecmax)
-
             do ie=1,nelec
             do je=1,nelec
                potmatrix(ir,ie,je)=potmat(ie,je)
             enddo
             enddo
 
-            if(diabatic_prod_pot.gt.0)then
-               call diagon(potmat,nelec,nelecmax,T,eigen)
-            else
-               do ie=1,nelec
-                  eigen(ie)=potmat(ie,ie)
-               enddo
-            endif
-            
+            call diagon(potmat,nelec,nelecmax,T,eigen)
+
             if(idproc.eq.0)then
                   write(10,'(100(1x,e15.7))')r*convl
      &       ,(potmatrix(ir,ie,ie)/conve/ev2cm,ie=1,nelec)
@@ -1146,45 +1111,30 @@ c            endif
 
          do j=jiniprod,jmaxprod
             if(idproc.eq.0)write(6,*)'  ** j= ',j,' **'
-!     d)   eigenvalues
-            if(diabatic_prod_pot.gt.0)then
-               call  bndbcele(Eval,fun,potmatrix,xm
-     &            ,rmis,rfin,nviniprod,nvmaxprod,j,n2prod1,nelec)
-            else
-               
-               call bndbc1ele(Eval,fun,potmatrix,xm
-     &              ,rmis,rfin,nviniprod,nvmaxprod,j,n2prod1,nelec
-     &              ,max_viblevels,ivreal)
+!d)   eigenvalues
+            call  bndbcele(Eval,fun,potmatrix,xm
+     &         ,rmis,rfin,nviniprod,nvmaxprod,j,n2prod1,nelec)
 
-            end if
 !e)    eigenfunctions
 
-            do iv=nviniprod,ivreal
+            do iv=nviniprod,nvmaxprod
                xnorm=0.d0
                ediatprod(iv,j)=eval(iv)/conve*conve1
-               ielecmax=0
-               xnormele_max=0.d0
                do ielec=1,nelec
-                  xnormele=0.d0
-                  do ir2=1,n2prod1
-                     fdprod(ir2,iv,j,ielec) = fun(ir2,ielec,iv)
+               do ir2=1,n2prod1
+                   fdprod(ir2,iv,j,ielec) = fun(ir2,ielec,iv)
      &                                    * dsqrt(ah2/convl)
-                     xnormele=xnormele+fdprod(ir2,iv,j,ielec)**2
-                  enddo
-                  if(xnormele.gt.xnormele_max)then
-                     xnormele_max=xnormele
-                     ielecmax=ielec
-                  endif
-                  xnorm=xnorm+xnormele 
+                    xnorm=xnorm+fdprod(ir2,iv,j,ielec)**2
+               enddo
                enddo
                xnorm=xnorm
-               write(6,'(1(2x,i4),2(2x,e15.7),(2x,"elec= ",i2))')iv
-     &              ,ediatprod(iv,j)/conve1/eV2cm,xnorm,ielecmax
+               write(6,'(1(2x,i4),4(2x,e15.7))')iv
+     &              ,ediatprod(iv,j)/conve1/eV2cm,xnorm
                call flush(6)
             enddo ! iv
 
             ielec=1
-            noBCprod(j)=ivreal
+            noBCprod(j)=nvmaxprod
          enddo  ! j
 
 !     reference energy for iprod.eq.1

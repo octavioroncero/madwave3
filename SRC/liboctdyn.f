@@ -404,7 +404,7 @@ C
 
       SUBROUTINE SCHR(E0,RMIN,RMAX,N,MAXIT,EPS,E2,KV,ITRY,v,p,npunt)
       IMPLICIT real*8(A-H,O-Z) 
-      DIMENSION Y(3),p(n),v(n)
+      DIMENSION Y(3),p(npunt),v(npunt)
 
       ITRY=0
       H=(RMAX-RMIN)/DFLOAT(N-1)
@@ -1808,6 +1808,118 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
 
       return
       end
+***********************************************************************
+
+      subroutine bndbc1ele(Eval,fun,potmatrix,xm
+     &      ,rmis,rfin,nvini,nvmax,j,npun,nelec,max_viblevels,ivreal)
+      implicit none
+
+      integer,intent(in) :: nelec,j,npun,nvini,nvmax
+      integer,intent(in) :: max_viblevels(nelec)
+      real*8,intent(inout) :: Eval(nvini:nvmax)
+      real*8,intent(inout) :: fun(npun,nelec,nvini:nvmax)      
+      real*8,intent(in) :: potmatrix(npun,nelec,nelec)
+      real*8,intent(in) :: xm,rmis,rfin
+      
+      real*8 :: alpha(npun),beta(npun),v(npun),p(npun),vv(npun)
+      real*8 :: ah,xl,xz,xz1,eps,a,b,r,e0,e2
+      integer :: maxit,ivreal,ie,ir,iv,nchan,kv,itry
+
+      Eval(:)=0.d0
+      fun(:,:,:)=0.d0
+      
+*
+* calculate the bound state of a diatomic system
+* for several uncoupled electronic states (nelec)
+*   for a particular value of the angular momentum j
+*
+* uses a equispaced radial representation 
+*
+*  uses a.u.
+* xmu: reduced mass
+*
+      
+      ah=(rfin-rmis)/dble(npun-1)
+      xl=0.5d0*dble(j*(j+1))/xm
+      xz=0.5d0/xm
+      xz1=2.d0*xm
+      eps=1.d-10
+      maxit=20
+!---  > loop in electronic states
+
+      ivreal=nvini-1
+      do ie=1,nelec
+         V(:)=0.d0
+         VV(:)=0.d0
+         alpha(:)=0.d0
+         beta(:)=0.d0
+         p(:)=0.d0
+         
+* effective potential
+         do ir=1,npun
+            r = rmis + dble(ir-1)*ah
+            vv(ir) = potmatrix(ir,ie,ie) + xl/(r*r)
+            beta(ir)=1.d0
+            alpha(ir)=-2.d0-2.d0*xm*vv(ir)*ah*ah
+         enddo
+
+! eigenvalues
+         call tqli(alpha,beta,npun,npun)
+
+         do iv=1,npun
+            alpha(iv)=-xz*alpha(iv)/ah/ah
+         enddo
+
+* orderig of eigenvalues
+ 
+ 44      continue
+            nchan=0
+            do ir=1,npun-1
+               if(alpha(ir).gt.alpha(ir+1))then
+                  a=alpha(ir)
+                  b=alpha(ir+1)
+                  alpha(ir)=b
+                  alpha(ir+1)=a
+                  nchan=nchan+1
+               endif
+            enddo
+         if(nchan.gt.0)go to 44
+
+!     eigenvalues
+         
+         do iv=1,min0(npun,max_viblevels(ie))
+            if(potmatrix(npun,ie,ie)-alpha(iv).gt.1.d-2)then
+               
+               e0=alpha(iv)*xz1
+               do ir=1,npun
+                  v(ir)=vv(ir)*xz1
+               end do
+               p(:)=0.d0
+         call schr(e0,rmis,rfin,npun,maxit,eps,e2,kv,itry,v,p,npun)
+               e2=e2/xz1
+               ivreal=ivreal+1
+               if(ivreal.ge.nvini.and.ivreal.le.nvmax)then
+
+                  Eval(ivreal)=e2
+                  do ir=1,npun
+                     fun(ir,ie,ivreal)=p(ir)
+                  end do
+!                 write(6,*)' ielec= ',ie,' ivreal=',ivreal
+                 
+                  
+               end if ! Energy below ekinmax
+            end if              ! eigval < pot(Rmax)
+         end do !iv=1,min(npun,max_viblevels(ie))
+      enddo                     ! ielec
+
+      if(ivreal.ne.nvmax)then
+         write(6,*)' bndbc1ele:  ivreal=',ivreal
+         write(6,*)'   while nvmax= ',nvmax
+         write(6,*)' end bndbc1ele'
+      endif
+
+      return
+      end
 
 ********************************* l2mat ***************************************
 
@@ -1854,6 +1966,66 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
       enddo
       enddo
       
+      return
+      end 
+
+********************************* l2mat_Renner ***************************************
+
+      subroutine l2mat_Renner(bfl2mat,facmass,iommin,iommax,j,Jtot
+     &                         ,lambdaA,isigma,isigmap,iomdim0,iomdim1)
+      implicit real*8(a-h,o-z)
+      dimension bfl2mat(iomdim0:iomdim1,iomdim0:iomdim1)
+
+*   l^2 matrix obtained in a body-fixed representation
+*                  for fixed Jtot and j  for electronic \Lambda=1 (Renner -Teller effect)
+*            and a limited number of Omega projection's
+*                   using parity adapted functions
+*                           facmass = hbr*hbr*0.5d0/xmred
+      
+      do iom=iommin,iommax
+      do jom=iommin,iommax
+         bfl2mat(iom,jom)=0.d0
+      enddo
+      enddo
+
+      xj=dble(j)
+
+      if(iommin.lt.iomdim0.or.iommax.gt.iomdim1)then
+         if(idproc.eq.0)write(6,*)'   problem with Omega:',
+     &         ' j,iommin,iommax= '  ,j,iommin,iommax,'  in l2mat'
+         stop
+      endif
+
+      if(isigma*isigmap == 1)then
+         do iom=iommin,iommax
+         do jom=iommin,iommax
+            if(iom.eq.jom)then
+               x1=xj*(xj+1.d0)+dble(iom-lambdaA)**2
+               x2=dble(Jtot*(Jtot+1))
+               xk=(x1+x2)*facmass
+               bfl2mat(iom,jom)=xk
+            elseif(iabs(iom-jom).eq.1)then
+               x1=dble(Jtot*(Jtot+1)-iom*jom)
+               x2=xj*(xj+1.d0)-dble((iom-lambdaA)*(jom-lambdaA))
+               x12=dsqrt(x1*x2)
+               xk=-x12*facmass
+               if(iom*jom.eq.0)xk=xk*dsqrt(2.d0)
+               bfl2mat(iom,jom)=xk
+            endif
+         enddo
+         enddo
+      elseif(isigma*isigmap == -1)then
+         do iom=iommin,iommax
+         do jom=iommin,iommax
+            if(iom.eq.jom)then
+               x1=-dble(2*lambdaA*lambdaA)
+                xk=x1*facmass
+               bfl2mat(iom,jom)=xk
+            endif
+         enddo
+         enddo
+      endif
+
       return
       end 
 

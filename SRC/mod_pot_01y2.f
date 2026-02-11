@@ -22,7 +22,7 @@
       real*8 ::  vcutmax  ,radcutmax  ,rotcutmax
 * pot
       integer :: nomaxV,maxpoint
-      integer :: nelec,radau,NO_ref_energy
+      integer :: nelec,radau,No_ref_energy
       integer,allocatable :: iomdiat(:),iomatom(:)
       real*8, allocatable :: sigdiat(:),sigatom(:)
       real*8, allocatable :: VVV(:,:,:,:)
@@ -43,6 +43,11 @@
      &     ,indcanproc(:),indangproc(:),indrgridproc(:)
      &     ,indr1(:,:),indr2(:,:)
 
+*     for multiple electronic states: if products electronic states
+*        are couple it must be set to diabatic_prod_pot=1, otherwise =0
+
+      integer:: diabatic_prod_pot
+
       contains
 **********************************
 *   functions of mod_pot_01y2    *
@@ -57,7 +62,7 @@
       namelist /inputpotmass/system,xm1,xm0,xm2
      &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
      &     ,radau,R1inf_radial_functions,R2inf_radial_functions
-     &     ,No_ref_energy
+     &     ,No_ref_energy,diabatic_prod_pot
 
 
          write(6,'(40("_"),/,10x,"Pot_mod",/,40("_"))')
@@ -65,7 +70,8 @@
          radau=0
          R1inf_radial_functions=100.d0
          R2inf_radial_functions=100.d0
-         NO_ref_energy=1
+         No_ref_energy=1
+         diabatic_prod_pot=0
          read(10,nml = inputpotmass)
          write(6,'(80("-"),/,10x
      &      ,"Mass and pot determination for 01+2= ",a20
@@ -83,14 +89,22 @@
             write(6,*)' Using A + BC body fixed Jacobi coordinates'
 * Reactant Jacobi
          xm1reac = (xm0*xm1)/(xm0+xm1)
-         xm2reac = (xm2*(xm0+xm1))/xmtot
+         if(xm2.gt.1.d-3)then
+            xm2reac = (xm2*(xm0+xm1))/xmtot
+         else
+            xm2reac =xm1reac
+         end if
 * Product Jacobi
          xm1prod = (xm0*xm2)/(xm0+xm2)
          xm2prod = (xm1*(xm0+xm2))/xmtot
 * Reduced masses for dynamical calculations
 
          xm1red = (xm0*xm1) / (xm0+xm1)
-         xm2red = (xm2*(xm0+xm1)) / xmtot
+         if(xm2.gt.1.d-3)then
+            xm2red = (xm2*(xm0+xm1)) / xmtot
+         else
+            xm2red = xm1red
+         end if
          xm0red = 0.d0
       elseif(radau.eq.1)then
          write(6,*)' Using body fixed Radau(2+1) coordinates'
@@ -530,10 +544,10 @@
       do ie=1,nelec
       do je=ie,nelec
          if(idproc.eq.0.and.npun1.gt.1)then
-            write(name,"('potr1r2.e',i1,'.'i1)")ie,je
+            write(name,"('potr1r2.e',i2.2,'.'i2.2)")ie,je
             open(ifile,file=name,status='unknown')
          elseif(idproc.eq.0.and.npun1.eq.1)then
-            write(name,"('potr2gam.e',i1,'.'i1)")ie,je
+            write(name,"('potr2gam.e',i2.2,'.'i2.2)")ie,je
             open(ifile,file=name,status='unknown')
          endif
 

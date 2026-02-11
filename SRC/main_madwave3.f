@@ -160,11 +160,11 @@ c! the partition.
 
 !     preparing initial wave packet reading electric dipole transition
 
-      if(iphoto.eq.0)then
+      if (iphoto.eq.0)then
                               ! initial collision wave packet
          call set_colini
       
-      elseif(iphoto.eq.1.or.iphoto.eq.2.or.iphoto.eq.3)then
+      else if (iphoto.eq.1.or.iphoto.eq.2.or.iphoto.eq.3)then
          if(iphoto.eq.1)call read_trans_dipole
          call dip_bnd
          do i=1,ntotproc(idproc)
@@ -181,7 +181,7 @@ c! the partition.
          call flush(6)
          call MPI_BARRIER(MPI_COMM_WORLD, IERR)
          stop
-      endif
+      end if
 
 !     initialize total flux quantities
 
@@ -198,8 +198,12 @@ c! the partition.
 
 * fftw3 initialization
 
-      call difs
-
+      if(xm2.gt.1.d-3)then
+         call difs
+      else
+         call Hdiatom
+      end if
+      
 **>> initialating propagation
       
       write(6,'(40("="),/,10x,"Chebysev integration",/,40("="))')
@@ -228,7 +232,13 @@ c! the partition.
          do i=1,ntotproc(idproc)
             rflanz0proc(i)=rpaqproc(i)
          enddo
-         call difs
+         
+         if(xm2.gt.1.d-3)then
+            call difs
+         else
+            call Hdiatom
+         end if
+          
 
          do i=1,ntotproc(idproc)
             rpaqproc(i)=(rHpaqrec(i)
@@ -297,9 +307,11 @@ c! the partition.
 
          t0=MPI_Wtime()
          if(idproc == 0)then
-           if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
+            if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
+               if(xm2.gt.1.d-3)then
                write(name,'("Cvj.",i4.4)')iloop
                open(15,file=name,status='new',form='unformatted')
+               endif
            endif
            if(iprod == 2)then
               write(name,'("Cvjprod.",i4.4)')iloop
@@ -310,7 +322,11 @@ c! the partition.
          do it = iit0+1,iit0+ntimes
 
             time=it
-            call difs
+            if(xm2.gt.1.d-3)then
+               call difs
+            else
+               call Hdiatom
+            end if
             do i=1,ntotproc(idproc)
                call indiproc(i,icanp,ielec,iom,iangp,ir,ir1,ir2)
                fabs=absfr1(ir1)*absfr2(ir2)
@@ -324,8 +340,8 @@ c! the partition.
             
             if(npun1.gt.1)call totalflux_k(it,kminelastic)
             
-            call Cvjflux_k(it,kminelastic)
-            if(iprod.eq.2.and.npun1.gt.1)then
+            if(npun2.gt.1)call Cvjflux_k(it,kminelastic)
+            if(iprod.eq.2.and.npun1.gt.1.and.npun2.gt.1)then
                call prodpaq
                call prodcvj
             endif
@@ -336,8 +352,10 @@ c! the partition.
 
             if(idproc == 0)then
               if(iphoto.ge.1.or.iprod.eq.1.or.iwrt_reac_distri.eq.2)then
-                  write(15)it,Cvj
-                  call flush(15)
+                 if(xm2.gt.1.d-3)then
+                    write(15)it,Cvj
+                    call flush(15)
+                 endif
               endif
               if(iprod == 2)then
                   write(16)it,Cvjprod
@@ -564,6 +582,8 @@ c! the partition.
          write(name,'("S2prod.v",i2.2,".J",i3.3,".k",i5.5)')
      &              nvref,Jtot,iloop
          open(20,file=name,status='unknown')
+         write(name,'("S2prodelec")')
+         open(19,file=name,status='unknown')
       endif
       if(iwrt_reac_distri.eq.1)then
 !         write(name,'("S2mat.J",i3.3,".k",i5.5)')
@@ -593,50 +613,51 @@ c! the partition.
 
          rotdistri(:)=0.d0
          S2reac=0.d0
-         do ican=1,ncan
-            iele=nelebas(ican)
-            do j=j00(ican),jmax,inc
-               do iv=nvini,noBCstates(j,iele)
-                  zzz=zS2(ie,iv,j,ican)/2.d0/pi
-                  Av=dreal(zzz*dconjg(zzz))
-                  S2(iv,j,ican)=Av*S2factor(ie,iv,j,iele)
-                  S2reac=S2reac+S2(iv,j,ican)
-                  rotdistri(j)=rotdistri(j)+S2(iv,j,ican)
-               enddo
-            enddo
-         enddo
-
-!****> state-2-state for products
-
-         if(npun1.gt.1)then
-            if(iprod.eq.1)then
-               S2no=0.d0
-               vibprod(:)=0.d0
-               do ican=1,ncan
+         if(xm2.gt.1.d-3)then
+            do ican=1,ncan
                iele=nelebas(ican)
                do j=j00(ican),jmax,inc
-               do iv=nvini,min0(nvmaxprod,noBCstates(j,iele))
-                  vibprod(iv)=vibprod(iv)+S2(iv,j,ican)
-               enddo
-               enddo
-               enddo
-            elseif(iprod.gt.1)then
-               S2no=0.d0
-               vibprod(:)=0.d0
-               S2pro(:,:,:)=0.d0
-               do iom=iomminprod,iommaxprod
-               do j=jiniprod,jmaxprod
-                  do iv=nviniprod,nvmaxprod
-                     zzz=zS2prod(ie,iv,j,iom)
-                     Av=dreal(zzz*dconjg(zzz))*0.25d0/(pi*pi)
-                     S2pro(iv,j,iom)=Av*S2prodfac(ie,iv,j)
-                     S2no=S2no+S2pro(iv,j,iom)
-                     vibprod(iv)=vibprod(iv)+S2pro(iv,j,iom)
+                  do iv=nvini,noBCstates(j,iele)
+                     zzz=zS2(ie,iv,j,ican)/2.d0/pi
+                     Av=dreal(zzz*dconjg(zzz))
+                     S2(iv,j,ican)=Av*S2factor(ie,iv,j,iele)
+                     S2reac=S2reac+S2(iv,j,ican)
+                     rotdistri(j)=rotdistri(j)+S2(iv,j,ican)
                   enddo
                enddo
-               enddo
-            endif
+            enddo
+!****> state-2-state for products
 
+            if(npun1.gt.1)then
+               if(iprod.eq.1)then
+                  S2no=0.d0
+                  vibprod(:)=0.d0
+                  do ican=1,ncan
+                     iele=nelebas(ican)
+                     do j=j00(ican),jmax,inc
+                     do iv=nvini,min0(nvmaxprod,noBCstates(j,iele))
+                        vibprod(iv)=vibprod(iv)+S2(iv,j,ican)
+                     enddo
+                     enddo
+                  enddo
+               elseif(iprod.gt.1)then
+                  S2no=0.d0
+                  vibprod(:)=0.d0
+                  S2pro(:,:,:)=0.d0
+                  do iom=iomminprod,iommaxprod
+                  do j=jiniprod,jmaxprod
+                     do iv=nviniprod,nvmaxprod
+                        zzz=zS2prod(ie,iv,j,iom)
+                        Av=dreal(zzz*dconjg(zzz))*0.25d0/(pi*pi)
+                        S2pro(iv,j,iom)=Av*S2prodfac(ie,iv,j)
+                        S2no=S2no+S2pro(iv,j,iom)
+                        vibprod(iv)=vibprod(iv)+S2pro(iv,j,iom)
+                     enddo
+                  enddo
+                  enddo
+               endif
+            end if  ! npun.gt.1
+         end if ! xm2 > 0     
 ***> printing total flux to products  
 
             do iv=nviniprod,nvmaxprod
@@ -644,27 +665,36 @@ c! the partition.
             enddo
             if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
             if(S2reac.lt.1.d-90)S2reac=0.d0
+            if(xm2.lt.1.d-3)then
+               write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
+     &          ,S2prodtot(ie)*photonorm
+     &          ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
 
-            if(iprod.eq.0)then
-               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+            elseif(iprod.eq.0)then
+               write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
-     &             ,reacfct(ie)
+     &              ,reacfct(ie)
+               write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
+     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
             elseif(iprod.eq.1)then
-               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+               write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2reac*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &          ,(vibprod(iv)*photonorm,iv=nvini,min0(nvmaxprod,nvmax))
-            else
-               write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
+               write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
+     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+             else
+               write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,S2no*photonorm
      &            ,(vibprod(iv)*photonorm,iv=nviniprod,nvmaxprod)
-
+               write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
+     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+ 
             endif
-         endif  ! npun.gt.1
-         if(iwrt_reac_distri.eq.1)then
+         if(iwrt_reac_distri.eq.1.and.xm2.gt.1.d-3)then
 
 
 !            write(20,"(501(1x,e15.7))")etotS2(ie)/conve1/8065.5d0
@@ -701,7 +731,8 @@ c! the partition.
          endif
       enddo ! ie=1,ne
    
-!      close(20)
+      close(20)
+      close(19)
 
       do ielec=1,nelec
          iiielec=ifilelec+ielec

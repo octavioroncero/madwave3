@@ -18,8 +18,11 @@
      &     ,rHpaqproc(:,:)
      &     ,rpaq0(:)
 
-      real*8, allocatable :: xl2p(:,:,:,:,:)
-     &     , xj2(:,:,:,:)
+!      real*8, allocatable :: xl2p(:,:,:,:,:)
+!     &     , xj2(:,:,:,:)
+!---> Adding extra dimension in nelecmax for Renner coupling
+      real*8, allocatable :: xl2p(:,:,:,:,:,:)
+     &     , xj2(:,:,:,:,:)
       
       real*8, allocatable :: rr1m2(:,:),rr2m2(:,:)
 
@@ -83,9 +86,12 @@
       rpaq0(:)=0.d0
 
 ! centrifugal terms
-
-      allocate(xl2p(npun2,nangu,nanguprocdim,ncanprocdim,-1:1)
-     &       , xj2(npun1,nangu,nanguprocdim,ncanmax)
+!      allocate(xl2p(npun2,nangu,nanguprocdim,ncanprocdim,-1:1)
+!     &       , xj2(npun1,nangu,nanguprocdim,ncanmax)
+!     &       , stat=ierror)
+!---> Adding extra dimension in nelecmax for Renner coupling
+      allocate(xl2p(npun2,nangu,nanguprocdim,ncanprocdim,-1:1,nelecmax)
+     &       , xj2(npun1,nangu,nanguprocdim,ncanmax,ncanmax)
      &       , stat=ierror)
       if(ierror.ne.0)then
         write(*,*)" error in initmem for centrifugal "
@@ -94,7 +100,8 @@
          norealproc_mem=norealproc_mem+imem
          imem=
      &    npun2*nangu*nanguprocdim*ncanprocdim*3
-     &    +npun1*nangu*nanguprocdim*ncanmax
+     &        +npun1*nangu*nanguprocdim*ncanmax
+         imem=imem*nelecmax
           write(6,*)' xl2p,xj2 in set_vectors_Hphi, proc= '
      &       ,idproc
      &       ,' imem=',imem
@@ -179,83 +186,60 @@
       
       integer :: ierror
       integer :: jjjmax,iang,jangp,icanp,ir1,ican,ielec,iom,iomdi,iomat
-      integer :: i,j,jp,k
-      real*8 :: xj,xom,r1,yyy,x1,x2
+      integer :: jcanp,jcan,jelec,jom,jomdi,jomat
+       integer :: i,j,jp,k,lamj,kp
+      real*8 :: xj,xom,r1,yyy,x1,x2,xLam,xLAMj
+
       real*8 :: xkinj(nangu,nangu)
-      
-      integer :: m2,mp2,j2,jmax2,jprin
-      real*8 :: y,gamma,xn,xxx
-      real*8 :: D00(nangu,0:2*(nangu2-1))
 
-!---  > legendre polynomials for m=0, for projection up of spurious solutions
-
-      m2=0
-      mp2=0
-      jprin=0
-      jmax2=2*(nangu2-1)
-      D00(:,:)=0.d0
-      
-      if(nangu.gt.1)then
-         do iang=1,nangu
-            y=cgamprod(iang)
-            gamma=dacos(y)
-            call dwigner(pm,jmax2,m2,mp2,gamma,ndim)
-              
-            do j=jprin,2*(nangu2-1)
-               j2=2*j
-               xn=dsqrt((2.d0*dble(j)+1.d0)*0.5d0)
-               xxx=xn*dsqrt(weiprod(iang))
-               D00(iang,j)=pm(j2)*xxx
-               if(iang.le.nangu)then
-                  xxx=xn*dsqrt(wreal(iang))
-                  D00(iang,j)=pm(j2)*xxx
-               endif
-            enddo
-         enddo
-      else
-         D00(1,0)=1.d0
-      end if
-!     builging j² matrix in the angular grid representtion
-      
       if(nangu.gt.1)then
          jjjmax=(nangu-1)*inc
 
-            do iang=1,nangu
-            do jangp=1,nanguproc
+         xj2(:,:,:,:,:)=0.d0
 
-               do icanp=1,ncanproc(idproc)
-                  do ir1=1,npun1
-                     xj2(ir1,iang,jangp,icanp)=0.d0
-                  enddo
-               enddo
-            enddo
-            enddo
 
+         do jcanp=1,ncanproc(idproc)
+            jcan=ibasproc(jcanp,idproc)
+            jelec=nelebas(jcan)
+            jom=iombas(jcan)
+            jomdi=iomdiat(nelebas(jcan))
+            jomat=iomatom(nelebas(jcan))
+      
+    
+            
          do icanp=1,ncanproc(idproc)
             ican=ibasproc(icanp,idproc)
             ielec=nelebas(ican)
             iom=iombas(ican)
             iomdi=iomdiat(nelebas(ican))
             iomat=iomatom(nelebas(ican))
+            xom=dble(iom)  
 
 **>> Evaluation of the matrix for j^2
-
+            xkinj(:,:)=0.d0
             do i=1,nojbas(ican)
-            do j=1,nojbas(ican)
+            do j=1,nojbas(jcan)
                xkinj(i,j)=0.d0
-               if(i.eq.j)then
+               if(ican.eq.jcan.and.i.eq.j)then
                   xj=dble(jbas(i,ican))
-                  xom=dble(iomdi)
-               xkinj(i,j)=(xj*(xj+1.d0)-xom*xom)*hbr*hbr*0.5d0
-               endif
+                  xLam=dble(iom-iomdi)  ! (iomdi)--> renner
+                  xkinj(i,j)=xj*(xj+1.d0)+xlam*xlam !-dble((iom-iomdi)**2) ! xLam*xLam
+                  xkinj(i,j)=xkinj(i,j)*hbr*hbr*0.5d0 ! change for Renner
+!               else if(iom.eq.jom.and.jbas(i,ican).eq.jbas(j,jcan)
+!     &                .and. ielec.ne.jelec. and. jomat.eq. -iomat)then
+!                  xLam=dble(iomdi)  ! (iomdi)--> renner
+!                  xom=dble(iom)  
+!                  xkinj(i,j)=0.d0 !-2.d0*xLam*(xom-xLam)*hbr*hbr*0.5d0 ! 
+               end if
             enddo
             enddo
 
             do ir1=1,npun1
                r1=rmis1+dble(ir1-1)*ah1
                do k=1,nojbas(ican)
+               do kp=1,nojbas(jcan)
                   if(jbas(k,ican).le.jjjmax)then
-                     yyy=xkinj(k,k)/(xm1red*r1*r1)
+                     yyy=xkinj(k,kp)/(xm1red*r1*r1)
                      if(yyy.gt.rotcutmax)then
                          yyy=rotcutmax
                      endif
@@ -263,43 +247,20 @@
                      do jp=1,nanguproc
                       j=indangreal(jp,idproc)
                       x1=Djmmp(i,jbas(k,ican),ielec,iom)
-                      x2=Djmmp(j,jbas(k,ican),ielec,iom)
-                      xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)+yyy*x1*x2
+                      x2=Djmmp(j,jbas(kp,jcan),jelec,jom)
+                      xj2(ir1,i,jp,icanp,jcanp) =
+     &                            xj2(ir1,i,jp,icanp,jcanp) + yyy*x1*x2
                      enddo
                      enddo
                   endif
-               enddo
-!     --> projection up spurious
-               yyy=rotcutmax
-               do k=1,nojbas(ican)
-                  do i=1,nangu
-                  do jp=1,nanguproc
-                     j=indangreal(jp,idproc)
-                     x1=Djmmp(i,jbas(k,ican),ielec,iom)
-                     x2=Djmmp(j,jbas(k,ican),ielec,iom)
-                     xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)-yyy*x1*x2
-                   end do
-                   end do
-               end do
-               do k=0,2*(nangu2-1)
-                  do i=1,nangu
-                  do jp=1,nanguproc
-                     j=indangreal(jp,idproc)
-                     x1=D00(i,k)
-                     x2=D00(j,k)
-                     xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)+yyy*x1*x2
-                   end do
-                   end do
-               end do
-!     --< end projection
-
-
-               
-            enddo
+                enddo
+                 enddo
+           enddo
 
          enddo                  ! icanp
+         enddo                  !jcanp
       else
-         xj2(:,:,:,:)=0.d0
+         xj2(:,:,:,:,:)=0.d0
       endif
          
       return
@@ -307,7 +268,7 @@
       
 !--------------------------------------------------
 !--------------------------------------------------
-      subroutine  bfgridl2mat
+      subroutine bfgridl2mat
 !-------------------------------------------------!
 !      l² terms represented in the angular grid   !
 !             for evaluation of H phi             !
@@ -328,11 +289,11 @@
      &                      ,hmat(:,:),T(:,:),eigval(:)
       integer,allocatable :: ind(:)
       integer :: iomdim1,iomdim0,maxomg
-      integer :: ielec,j,iom0,iom1,nnn,i,jj,jom,ir2
+      integer :: ielec,jelec,j,iom0,iom1,nnn,i,jj,jom,ir2
       real*8 :: yylmin,yylmax,yylmean,r2,r2eff,emineff,emeaneff
-      real*8 :: eee,emaxeff,x11,x22,yyy,facmass,erotlmax
+      real*8 :: eee,emaxeff,x11,x22,yyy,facmass,erotlmax,xxx
       integer :: iom,iterm,jjcanp,jjcan,jjelec,jjom,iq,iang,jang,jangp
-      integer :: sigelec
+      integer :: sigelec,sigelecp,iomat,jomat
 
       
 *  initialization
@@ -350,15 +311,14 @@
       erotlmax=0.d0
       facmass=hbr*hbr*0.5d0/xm2red
 
-      xl2p(:,:,:,:,:)=0.d0
+      xl2p(:,:,:,:,:,:)=0.d0
 
 *  starting loops
 
+      do jelec=1,nelec
       do ielec=1,nelec
-         sigelec=1
-         if(sigdiat(ielec).eq.-1.d0.or.sigatom(ielec).eq.-1.d0)then
-            sigelec=-1
-         endif
+         sigelec=sigatom(ielec)
+         sigelecp=sigatom(jelec)
          do j=j0,(nangu-1)*inc,inc
             iom0=iommin
             if(iparity.ne.sigelec*int((-1.d0)**Jtot)
@@ -370,7 +330,10 @@
             iom1=min0(j,iommax)
             nnn=iom1-iom0+1
             if(nnn.gt.0)then
-              call l2mat(bfl2mat,facmass,iom0,iom1,j,Jtot,iommin,iommax)
+               iomat=iomatom(ielec)*sigatom(ielec)
+               jomat=iomatom(jelec)*sigatom(jelec)
+               call l2mat_Renner(bfl2mat,facmass,iom0,iom1,j,Jtot
+     &                 ,iomat,sigelec,sigelecp,iommin,iommax)
               
                if(nnn.gt.1)then
                   i=0
@@ -384,7 +347,6 @@
                   enddo
 
                   call DIAGON(hmat,nnn,maxomg,T,eigval)
-
                   yylmin=eigval(1)
                   yylmax=eigval(nnn)
                   yylmean=0.5d0*(yylmin+yylmax)
@@ -411,16 +373,16 @@
                   endif
                   if(emaxeff.gt.erotlmax)erotlmax=emaxeff
 
+                  xl2mat(:,:)=0.d0
                   do iom=iom0,iom1
                   do jom=iom0,iom1
-                     xl2mat(iom,jom)=0.d0
                      if(dabs(bfl2mat(iom,jom)).gt.1.d-8
-     &                       .and.r2eff.gt.1.d-3)then
-                        xl2mat(iom,jom)=bfl2mat(iom,jom)/(r2eff*r2eff)
+     &                    .and.r2eff.gt.1.d-3)then
+                         xl2mat(iom,jom)=bfl2mat(iom,jom)/(r2eff*r2eff)
                      endif
                   enddo
                   enddo
-
+                       
 * Transformation to angular grid representation
 
                   do iom=iom0,iom1
@@ -450,12 +412,30 @@
                               x11=Djmmp(iang,j,ielec,iom)
                               x22=Djmmp(jang,j,ielec,jom)
                               yyy=xl2mat(iom,jom)
-                              xl2p(ir2,iang,jangp,jjcanp,iq)=
-     &                     xl2p(ir2,iang,jangp,jjcanp,iq)+x11*x22*yyy
+                              xl2p(ir2,iang,jangp,jjcanp,iq,jjelec) =
+     &                             xl2p(ir2,iang,jangp,jjcanp,iq,jjelec)
+     &                            + x11*x22*yyy
                            enddo
                            enddo
                            endif
 
+!     For Renner coupling
+                        
+!                        else if(jjelec.ne.ielec.and.jjom.eq.jom
+!     &                     .and.iabs(jom-iom).le.0)then
+!                        
+!                           do iang=1,nangu
+!                           do jangp=1,nanguproc
+!                              jang=indangreal(jangp,idproc)
+!                              x11=Djmmp(iang,j,ielec,iom)
+!                              x22=Djmmp(jang,j,ielec,jom)
+!                              yyy=xl2mat(iom,jom)
+!                              iq=0
+!                              xl2p(ir2,iang,jangp,jjcanp,iq,jjelec) =
+!     &                             xl2p(ir2,iang,jangp,jjcanp,iq,jjelec)
+!     &                            + x11*x22*yyy
+!                           enddo
+!                           enddo
                         endif
                      enddo  ! ican1p
 
@@ -468,6 +448,7 @@
             endif  ! iom0 < j
          enddo  ! j=0,jmax
       enddo  ! ielec=1,nelec
+      enddo  ! jelec=1,nelec
 
 !     deallocating auxiliary matrices
       deallocate(bfl2mat
@@ -620,7 +601,7 @@ c            endif
 **                  Subroutine DIFS                                **
 **                                                                 **
 **                Evaluates  H Phi(t)                              **
-**            using X-BC Jacobi coordinates in a body-fixed        **
+**            using Reatant Jacobi coordinates                     **
 **                                                                 **
 *********************************************************************
 
@@ -707,7 +688,7 @@ c            endif
       integer :: itotp,jdproc,iangp,iang,jdprocc,nsend,nreceived
       integer :: semaforo
       integer*8 :: max_semaforo,icount,i0
-      real*8 :: divi,ekin
+      real*8 :: divi,ekin,r1,r2,renner
 
       max_semaforo=10000000
       flags=FFTW_ESTIMATE
@@ -838,15 +819,30 @@ c            endif
                 ican2=ibasproc(ican2p,idproc)
                 ielec2=nelebas(ican2)
                 iom2=iombas(ican2)
+                
+!                renner=0.d0
                 if(iom.eq.iom2)then
                    ir=1
                    i0=indtotproc(ir,ican2p,jangp,idproc)-1
+
+!                   if(ielec.eq.ielec2)then
+!                      renner=dble(iomatom(ielec)*iomatom(ielec))
+!                      renner=renner*hbr*hbr*0.5d0
+!                   elseif(iomatom(ielec).eq.iomatom(ielec2)
+!     &         .and.dabs(sigatom(ielec)+sigatom(ielec2)).lt.1.d-5)then
+!                      renner=dble(iabs(iomatom(ielec))*iom)
+!                      renner=renner*hbr*hbr*0.5d0
+!                   endif
                    do ir=1,npunreal(jang)  ! assumes that grids are the same for all electronic states
                         itotp=i0+ir !indtotproc(ir,ican2p,jangp,idproc)
                         ir1=indr1(ir,jang)
                         ir2=indr2(ir,jang)
+                        r1=rmis1+dble(ir1-1)*ah1
+                        r2=rmis2+dble(ir2-1)*ah2
                         rHpaqrec(itotp)=rHpaqrec(itotp)
-     &                      + rphi0(ir2,ir1)*vvv(ir,jangp,ielec,ielec2)
+     &                       + rphi0(ir2,ir1)*vvv(ir,jangp,ielec,ielec2)
+!     &                    +rphi0(ir2,ir1)*renner*( 1.d0/(xm2red*r2*r2) )
+!---     &                      +renner*( 1.d0/(xm1red*r1*r1) )
                    enddo
                 endif
             enddo
@@ -871,8 +867,8 @@ c            endif
                         ir2=indr2(ir,iang)
                         itotp=i0+ir ! indtotproc(ir,ican2p,iangp,jdproc)
                       rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-     &                   +rphi0(ir2,ir1)*(xj2(ir1,iang,jangp,icanp)
-     &                                 +xl2p(ir2,iang,jangp,icanp,0))
+     &                 +rphi0(ir2,ir1)*(xj2(ir1,iang,jangp,icanp,ielec2)
+     &                             +xl2p(ir2,iang,jangp,icanp,0,ielec2))
                      enddo
                   elseif(iom.eq.iom2+1.and.ielec.eq.ielec2)then
                      ir=1
@@ -882,7 +878,7 @@ c            endif
                         ir2=indr2(ir,iang)
                         itotp=i0+ir !indtotproc(ir,ican2p,iangp,jdproc)
                      rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-     &                  +rphi0(ir2,ir1)*xl2p(ir2,iang,jangp,icanp,1)
+     &               +rphi0(ir2,ir1)*xl2p(ir2,iang,jangp,icanp,1,ielec2)
                      enddo
                   elseif(iom.eq.iom2-1.and.ielec.eq.ielec2)then
                      ir=1
@@ -892,7 +888,18 @@ c            endif
                         ir2=indr2(ir,iang)
                         itotp=i0+ir !indtotproc(ir,ican2p,iangp,jdproc)
                      rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-     &                  +rphi0(ir2,ir1)*xl2p(ir2,iang,jangp,icanp,-1)
+     &             +rphi0(ir2,ir1)*xl2p(ir2,iang,jangp,icanp,-1,ielec2)
+                     enddo
+                  elseif(iom.eq.iom2.and.ielec.ne.ielec2)then
+                     ir=1
+                     i0=indtotproc(ir,ican2p,iangp,jdproc)-1
+                     do ir=1,npunreal(iang)
+                        ir1=indr1(ir,iang)
+                        ir2=indr2(ir,iang)
+                        itotp=i0+ir !indtotproc(ir,ican2p,iangp,jdproc)
+                     rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &               +rphi0(ir2,ir1)*xl2p(ir2,iang,jangp,icanp,0,ielec2)
+     &               +rphi0(ir2,ir1)*xj2(ir1,iang,jangp,icanp,ican2p)
                      enddo
                   endif
                enddo ! ican2p
@@ -941,256 +948,6 @@ c            endif
       return
       end subroutine difs
       
-!--------------------------------------------------
-
-      subroutine Hdiatom
-*********************************************************************
-**                  Subroutine Hdiatom                             **
-**                                                                 **
-**                Evaluates  H Phi(t)                              **
-**                using BC  coordinates                            **
-**                                                                 **
-*********************************************************************
-
-      use mod_gridYpara_01y2
-      use mod_pot_01y2
-      use mod_baseYfunciones_01y2
-      implicit none
-      include "mpif.h"
-      
-      integer :: ierror
-
-      INTEGER FFTW_R2HC
-      PARAMETER (FFTW_R2HC=0)
-      INTEGER FFTW_HC2R
-      PARAMETER (FFTW_HC2R=1)
-      INTEGER FFTW_DHT
-      PARAMETER (FFTW_DHT=2)
-      INTEGER FFTW_REDFT00
-      PARAMETER (FFTW_REDFT00=3)
-      INTEGER FFTW_REDFT01
-      PARAMETER (FFTW_REDFT01=4)
-      INTEGER FFTW_REDFT10
-      PARAMETER (FFTW_REDFT10=5)
-      INTEGER FFTW_REDFT11
-      PARAMETER (FFTW_REDFT11=6)
-      INTEGER FFTW_RODFT00
-      PARAMETER (FFTW_RODFT00=7)
-      INTEGER FFTW_RODFT01
-      PARAMETER (FFTW_RODFT01=8)
-      INTEGER FFTW_RODFT10
-      PARAMETER (FFTW_RODFT10=9)
-      INTEGER FFTW_RODFT11
-      PARAMETER (FFTW_RODFT11=10)
-      INTEGER FFTW_FORWARD
-      PARAMETER (FFTW_FORWARD=-1)
-      INTEGER FFTW_BACKWARD
-      PARAMETER (FFTW_BACKWARD=+1)
-      INTEGER FFTW_MEASURE
-      PARAMETER (FFTW_MEASURE=0)
-      INTEGER FFTW_DESTROY_INPUT
-      PARAMETER (FFTW_DESTROY_INPUT=1)
-      INTEGER FFTW_UNALIGNED
-      PARAMETER (FFTW_UNALIGNED=2)
-      INTEGER FFTW_CONSERVE_MEMORY
-      PARAMETER (FFTW_CONSERVE_MEMORY=4)
-      INTEGER FFTW_EXHAUSTIVE
-      PARAMETER (FFTW_EXHAUSTIVE=8)
-      INTEGER FFTW_PRESERVE_INPUT
-      PARAMETER (FFTW_PRESERVE_INPUT=16)
-      INTEGER FFTW_PATIENT
-      PARAMETER (FFTW_PATIENT=32)
-      INTEGER FFTW_ESTIMATE
-      PARAMETER (FFTW_ESTIMATE=64)
-      INTEGER FFTW_ESTIMATE_PATIENT
-      PARAMETER (FFTW_ESTIMATE_PATIENT=128)
-      INTEGER FFTW_BELIEVE_PCOST
-      PARAMETER (FFTW_BELIEVE_PCOST=256)
-      INTEGER FFTW_DFT_R2HC_ICKY
-      PARAMETER (FFTW_DFT_R2HC_ICKY=512)
-      INTEGER FFTW_NONTHREADED_ICKY
-      PARAMETER (FFTW_NONTHREADED_ICKY=1024)
-      INTEGER FFTW_NO_BUFFERING
-      PARAMETER (FFTW_NO_BUFFERING=2048)
-      INTEGER FFTW_NO_INDIRECT_OP
-      PARAMETER (FFTW_NO_INDIRECT_OP=4096)
-      INTEGER FFTW_ALLOW_LARGE_GENERIC
-      PARAMETER (FFTW_ALLOW_LARGE_GENERIC=8192)
-      INTEGER FFTW_NO_RANK_SPLITS
-      PARAMETER (FFTW_NO_RANK_SPLITS=16384)
-      INTEGER FFTW_NO_VRANK_SPLITS
-      PARAMETER (FFTW_NO_VRANK_SPLITS=32768)
-      INTEGER FFTW_NO_VRECURSE
-      PARAMETER (FFTW_NO_VRECURSE=65536)
-      INTEGER FFTW_NO_SIMD
-      PARAMETER (FFTW_NO_SIMD=131072)
-      
-      integer*8 plan,flags
-      INTEGER :: req, status(MPI_STATUS_SIZE),ierr
-      
-      real*8 :: xp2r2p2r1(npun1),rphi0(npun1)
-      real*8 :: auxR(npun1),raux(npun1)
-      integer :: icanp,ican,ielec,iom,jangp,jang,ir1,ir2,ir
-      integer :: i,nn2,nn1,iii,i1,i2,ican2p,ican2,ielec2,iom2
-      integer :: itotp,jdproc,iangp,iang,jdprocc,nsend,nreceived
-      integer :: semaforo
-      integer*8 :: max_semaforo,icount,i0
-      real*8 :: divi,ekin,rotfac,yyy
-      INTEGER ::IOMDI2
-
-      max_semaforo=10000000
-      flags=FFTW_ESTIMATE
-      plan=0
-
-      rHpaqproc(:,:)=0.d0
-      rHpaqrec(:)=0.d0
-                                 
-******************
-**  1) T Phi(t) **
-******************
-      do icanp=1,ncanproc(idproc)
-         ican=ibasproc(icanp,idproc)
-         ielec=nelebas(ican)
-         iom=iombas(ican)
-
-!$OMP parallel do schedule(dynamic)
-!$OMP&     reduction(+:rHpaqrec,rHpaqproc)
-!$OMP&     private(jangp,jang,ir1,ir2,rphi0,raux,xp2r2p2r1,i0,ir,i
-!$OMP&            ,divi,ekin,iii,itotp,ican2p,ican2
-!$OMP&            ,ielec2,iom2,jdprocc,jdproc,iang,iangp
-!$OMP&            ,i1,i2,nn1,nn2,auxr,plan,icount)       
-!$OMP&    shared(indangreal,rpaqproc,p2r1,p2r2,radcutmax
-!$OMP&             ,vvv,ibasproc,iombas,nelebas,xj2,xl2p
-!$OMP&             ,indr1,indr2,ncouproc,ncanproc,nanguproc
-!$OMP&             ,ican,icanp,ielec,iom,idproc,npun1,npun2
-!$OMP&             ,flags,indtotproc,semaforo   
-!$OMP&             ,npunreal,nopr1,nopr2,ipcou,max_semaforo)
-         do jangp=1,nanguproc
-            jang=indangreal(jangp,idproc)
-
-             
-             do ir1=1,npun1
-                rphi0(ir1)=0.d0
-                raux(ir1)=0.d0
-                xp2r2p2r1(ir1)=0.d0
-             enddo
-
-             do ir=1,npunreal(jang)
-                i=indtotproc(ir,icanp,jangp,idproc)
-                ir1=indr1(ir,jang)
-                raux(ir1)=rpaqproc(i)
-                rphi0(ir1)=raux(ir1)
-             enddo
-
-             divi=2.d0*dble((npun1+1))
-             divi=1.d0/(divi)
-
-             do ir1=1,npun1
-                ekin=p2r1(ir1,jang)
-                if(ekin.gt.radcutmax)ekin=radcutmax
-                xp2r2p2r1(ir1)=ekin
-                auxR(ir1)=raux(ir1)
-             enddo
-!$OMP critical
-             semaforo=1
-
-             call dfftw_plan_r2r_1d(plan,npun1,auxR,auxR
-     &                    ,FFTW_RODFT00
-     &                    ,FFTW_RODFT00
-     &            ,flags)
-             
-             semaforo=0
-!$OMP end critical
-             icount=0
- 1           continue
-             if(semaforo.eq.1)then
-                icount=icount+1
-                if(mod(icount,max_semaforo).eq.0)then
-                   write(6,*)'  icount in difs= ',icount,max_semaforo
-                   call flush(6)
-!                   stop
-                endif
-                go to 1
-             endif
-             
-             call dfftw_execute(plan)
-
-             do ir1=1,npun1
-                auxR(ir1)=auxR(ir1)*(xp2r2p2r1(ir1))*divi
-             enddo
-             call dfftw_execute(plan)
-
-!$OMP critical
-             semaforo=1
-             call dfftw_destroy_plan(plan)
-             semaforo=0
-!$OMP end critical
-
-             do ir1=1,npun1
-                 raux(ir1)=auxR(ir1)
-             enddo
-
-             do ir=1,npunreal(jang)
-                ir1=indr1(ir,jang)
-                itotp=indtotproc(ir,icanp,jangp,idproc)
-                rHpaqrec(itotp)=rHpaqrec(itotp)+raux(ir1)
-             enddo
-
-******************
-**  2) V Phi(t) **
-******************
-
-            do ican2p=1,ncanproc(idproc)
-                ican2=ibasproc(ican2p,idproc)
-                ielec2=nelebas(ican2)
-                iom2=iombas(ican2)
-                if(iom.eq.iom2)then
-                   do ir=1,npunreal(jang)  ! assumes that grids are the same for all electronic states
-                        itotp=indtotproc(ir,ican2p,jangp,idproc)
-                        rHpaqrec(itotp)=rHpaqrec(itotp)
-     &                      + rpaqproc(itotp)*vvv(ir,jangp,ielec,ielec2)
-                   enddo
-                endif
-            enddo
-
-******************************
-**>>  3) j^2 
-******************************
-
-            do jdprocc=1,ncouproc(idproc)
-            jdproc=ipcou(jdprocc,idproc)
-            do iangp=1,nanguproc
-               iang=indangreal(iangp,jdproc)
-               do ican2p=1,ncanproc(jdproc)
-                  ican2=ibasproc(ican2p,jdproc)   
-                  iom2=iombas(ican2)
-                  ielec2=nelebas(ican2)
-                  iomdi2=iomdiat(ielec2)
-                  yyy=dble(Jtot*(Jtot+1)-iomdi2*iomdi2)
-                  rotfac=yyy*hbr*hbr*0.5d0/xm1red
-                  if(iom.eq.iom2.and.ielec.eq.ielec2)then
-                     do ir=1,npunreal(iang)
-                        ir1=indr1(ir,iang)
-                        itotp= indtotproc(ir,ican2p,iangp,jdproc)
-                        yyy=rotfac*rr1m2(ir,iang)
-                        if(yyy.gt.rotcutmax)then
-                            yyy=rotcutmax
-                        endif
-                        rHpaqrec(itotp)=rHpaqrec(itotp)
-     &                   + rpaqproc(itotp)*yyy
-                     enddo
-                  endif
-               enddo ! ican2p
-
-            enddo  ! iangp
-            enddo  ! jdprocc
-
-         enddo   ! jangp
-
-      enddo ! icanp
-   
-      return
-      end subroutine Hdiatom
 !--------------------------------------------------
 !=======================================================
       end module mod_Hphi_01y2

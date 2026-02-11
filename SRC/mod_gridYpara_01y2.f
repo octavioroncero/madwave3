@@ -20,7 +20,9 @@
       real*8,parameter :: eV2cm = 8065.5d0
       real*8,parameter :: hbr = convl/dsqrt(convm*conve/conve1)
       real*8,parameter :: au2eV = 27.21113957d0
-      real*8,parameter ::  zot2au=(1.d0/conve1)*conve
+      real*8,parameter ::  zot2au=0.0380646230576441d0 !(1.d0/conve1)*conve
+      real*8,parameter :: zot2eV = 1.03578177070099d0
+      real*8,parameter :: hartree2cm=219474.625
 
       real*8,parameter ::  cluz_au=137.d0
       real*8,parameter :: epsilon0_au=0.07957747d0 
@@ -71,6 +73,10 @@
 *     to calculate total memory
       integer*8 :: nointeger_mem,noreal_mem
       integer*8 :: nointegerproc_mem,norealproc_mem
+
+*     number of vibrational states per electronic state
+
+      integer,allocatable :: max_viblevels(:)
       contains
 ***************************************
 *   functions of  mod_gridYpara_01y2  *
@@ -80,7 +86,7 @@
 !--------------------------------------------------
       implicit none
       include "mpif.h"
-      integer :: ierror,ir1,ir2,iang
+      integer :: ierror,ir1,ir2,iang,icount,ie
       real*8 :: div
 *********************************************************
       namelist /inputgridbase/npun1,rmis1,rfin1,npun1min
@@ -91,7 +97,7 @@
      &                       ,nvref,jref,iomref,ielecref
 *********************************************************
       namelist /inputprod/iprod
-     &                   ,nviniprod,nvmaxprod
+     &                   ,nviniprod,nvmaxprod,max_viblevels
      &                   ,jiniprod,jmaxprod
      &     ,iomminprod,iommaxprod
      &     ,Rbalinprod,n2prod0,n2prod1,nangproj0,nangproj1
@@ -129,6 +135,7 @@
          nangproj0=1
          nangproj1=nangu
          iprod=0
+         allocate(max_viblevels(nelecmax))
       write(6,*)
       write(6,*)'  products data'
       write(6,*)'  -------------'
@@ -145,6 +152,18 @@
             write(6,*)'  n2prod1= ',n2prod1,'  > npun2= ',npun2
             write(6,*)'   setting n2prod1=npun2'
             n2prod1=npun2
+         endif
+         if(nelecmax.eq.1)max_viblevels(1)=nvmaxprod-nviniprod+1
+         icount=0
+         do ie=1,nelecmax
+            icount=icount+max_viblevels(ie)
+         enddo
+         if(icount.ne.(nvmaxprod-nviniprod+1).and.iprod.eq.2)then
+            write(6,*)' in input_grid, namelist /inputprod/ '
+            write(6,*)'  (nvmaxprod-nviniprod+1)=',nvmaxprod-nviniprod+1
+            write(6,*)'    no equal to the sum_ie of max_viblevels(ie)'
+            call flush(6)
+            stop ' correct /inputprod/ and restart '
          endif
 
       write(6,*)
@@ -281,7 +300,7 @@
 !             stop
 !          endif
 !      endif
-      if(jmax.gt.(nangu2-1)*inc)then
+      if(jmax.gt.(nangu2-1)*inc.and.npun2.gt.1)then
         write(6,*)'  jmax= ',jmax
      &        ,' > (nangu2-1)*inc= ',(nangu2-1)*inc
         call flush(6)

@@ -41,25 +41,49 @@
       use mod_flux_01y2
       implicit none
       integer :: ierror,ie,iv,j,indt,it0,iloop0
-      integer*8 ::imem
+      integer*16 ::imem,imem1,imem2,imem3,imem4,imem5
       real*8 :: ekinini,pini,paqini,ekinfin,pfin
       
       write(6,'(40("="),/,10x,"mod_coortrans01_02",/,40("="))')
       write(6,*)'    Initializing variables for Smatprod '
       call flush(6)
-      imem=      netot*(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
-     &           +(iommaxprod-iomminprod+1)*(nvmaxprod-nviniprod+1)
+      imem1 = netot*(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
+      imem4=(n2prod1-n2prod0+1)
+      imem4=imem4*(nangproj1-nangproj0+1)
+      imem4=imem4*nelecmax
+      imem4=imem4*(nvmaxprod-nviniprod+1)
+      imem4=imem4*(jmaxprod-jiniprod+1)
+      imem4=imem4*(iommaxprod-iomminprod+1)
+      
+      imem2 = (iommaxprod-iomminprod+1)*(nvmaxprod-nviniprod+1)
      &           *(jmaxprod-jiniprod+1)*(2+netot*2)
-     &    +nbastot/nproc
-     &    +(n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)*nelecmax
-     &          *(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
-     &          *(iommaxprod-iomminprod+1)
-     &    +(n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
+      imem3 = nbastot/nproc
+      
+      imem4=(n2prod1-n2prod0+1)
+      imem4=imem4*(nangproj1-nangproj0+1)
+      imem4=imem4*nelecmax
+      imem4=imem4*(nvmaxprod-nviniprod+1)
+      imem4=imem4*(jmaxprod-jiniprod+1)
+      imem4=imem4*(iommaxprod-iomminprod+1)
+      
+      imem5= (n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
      &             *(iommaxprod-iomminprod+1)*ncanmax
-
+      imem = imem1 + imem2 + imem3 + imem4 + imem5 
       write(6,*)' memory to be allocated in ini_transcoor '
      &    ,'  in proc= ',idproc,' is= '
-     &    ,8.d0*(dble(imem)*1.d-9),' Gb'
+     &     ,8.d0*(dble(imem)*1.d-9),' Gb'
+      if(imem.lt.0)then
+         write(6,*)'imem_i=1-5=',imem1,imem2,imem3,imem4,imem5
+         write(6,*)' imem4 terms= ',(n2prod1-n2prod0+1)
+     &        ,(nangproj1-nangproj0+1)
+     &        ,nelecmax
+     &        ,(nvmaxprod-nviniprod+1)
+     &        ,(jmaxprod-jiniprod+1)
+     &        ,(iommaxprod-iomminprod+1)
+     &        ,ncanmax
+         write(6,*)' nbastot= ',nbastot,'ncanmax= ',ncanmax
+         call flush(6)
+      endif
       call flush(6)
       
       
@@ -202,7 +226,7 @@
       real*8 :: x1p(npun1),x1p2(npun1),x2p(npun2),x2p2(npun2)
       real*8 :: prodaux(n2prod0:n2prod1,nangproj0:nangproj1,nelecmax)
       real*8 :: pinfun(jiniprod:jmaxprod),raux(npun2,npun1)
-      integer*8 :: imem
+      integer*16 :: imem,imem2,imem3
 
       include "mpif.h"
 *
@@ -236,23 +260,24 @@
      &             ,iomminprod:iommaxprod,ncanmax)
      &     ,stat=ierror)
 
-      imem=
-     &     nbastot/nproc
-     &    +(n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)*nelecmax
-     &          *(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
-     &          *(iommaxprod-iomminprod+1)
-     &    +(n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
-     &             *(iommaxprod-iomminprod+1)*ncanmax
+      imem2=(n2prod1-n2prod0+1)
+      imem2=imem2*(nangproj1-nangproj0+1)
+      imem2=imem2*nelecmax
+      imem2=imem2*(nvmaxprod-nviniprod+1)
+      imem2=imem2*(jmaxprod-jiniprod+1)
+      imem2=imem2*(iommaxprod-iomminprod+1)
+
+      imem3=(n2prod1-n2prod0+1)
+      imem3=imem3*(nangproj1-nangproj0+1)
+      imem3=imem3*(iommaxprod-iomminprod+1)
+      imem3=imem3*ncanmax
+     
+      imem= nbastot/nproc+imem2+imem3
       if(imem.lt.0)then
           write(6,*)' Be carefull: imem = ',imem,' < 0' 
           write(6,*)' nbastot/nproc= ',nbastot/nproc
-          write(6,*)' second term = ',
-     &     (n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)*nelecmax
-     &          *(nvmaxprod-nviniprod+1)*(jmaxprod-jiniprod+1)
-     &          *(iommaxprod-iomminprod+1)
-          write(6,*)' third  term = ',
-     &     (n2prod1-n2prod0+1)*(nangproj1-nangproj0+1)
-     &             *(iommaxprod-iomminprod+1)*ncanmax
+          write(6,*)' second term = ',imem2
+          write(6,*)' third  term = ',imem3
       endif
 
 
