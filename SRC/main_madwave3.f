@@ -228,6 +228,8 @@ c! the partition.
       call flush(6)
  1    continue
       
+      rflanz0proc(:)=0.d0
+      rHpaqrec(:)=0.d0
       if(iit0.eq.0)then
          do i=1,ntotproc(idproc)
             rflanz0proc(i)=rpaqproc(i)
@@ -563,10 +565,11 @@ c! the partition.
       implicit none
       include "mpif.h"
       integer :: ifile,iii,ielec,ivprod,iomprod,ican,iele,j,iv
-      integer :: ie,iom,ifilelec,ivfile,iiielec,iiiv
+      integer :: ifileprodelec,ivprodfile,ieleBC,iiiprodelec
+      integer :: ie,iom,ifilelec,ivfile,iiielec,iiiv,ivBC
       integer :: iit0,iloop,indt
       real*8 :: S2reac,Av,S2no,S2nobis
-      real*8 :: vibprod(nviniprod:nvmaxprod)
+      real*8 :: vibprod(nelecmax,nviniprod:nvmaxprod)
       real*8 :: rotdistri(jini:jmax)
 
       real*8 :: S2pro(nviniprod:nvmaxprod,jiniprod:jmaxprod
@@ -575,6 +578,10 @@ c! the partition.
  
       ifilelec=50
       ivfile=100
+      vibprod(:,:)=0.d0
+
+      ifileprodelec=250
+      ivprodfile=300
 
 *     writes information at each loop in time
 
@@ -585,6 +592,22 @@ c! the partition.
          write(name,'("S2prodelec")')
          open(19,file=name,status='unknown')
       endif
+! for products
+      do ielec=1,nelec
+         iiiprodelec=ifileprodelec+ielec
+         write(name,"('distriS2prod.elec',i2.2)")ielec
+         open(iiiprodelec,file=name,status='unknown')
+      enddo
+      iiiv=ivprodfile
+!      do ielec=1,nelec
+!         do iv=minvibprod_(jiniprod,ielec),maxvibprod_(jiniprod,ielec)
+!            iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
+!            write(name,"('distriS2prod.v',i2.2,'.e',i1.1)") iv,ielec
+!            open(iiiv,file=name,status='unknown')
+!         enddo
+!      enddo
+      
+! for reactants      
       if(iwrt_reac_distri.eq.1)then
 !         write(name,'("S2mat.J",i3.3,".k",i5.5)')
 !     &              Jtot,iloop
@@ -611,6 +634,7 @@ c! the partition.
 
 ****> state-2-state for reactants
 
+         vibprod(:,:)=0.d0
          rotdistri(:)=0.d0
          S2reac=0.d0
          if(xm2.gt.1.d-3)then
@@ -631,27 +655,34 @@ c! the partition.
             if(npun1.gt.1)then
                if(iprod.eq.1)then
                   S2no=0.d0
-                  vibprod(:)=0.d0
                   do ican=1,ncan
                      iele=nelebas(ican)
                      do j=j00(ican),jmax,inc
-                     do iv=nvini,min0(nvmaxprod,noBCstates(j,iele))
-                        vibprod(iv)=vibprod(iv)+S2(iv,j,ican)
-                     enddo
+                        do iv=nvini,min0(nvmaxprod,noBCstates(j,iele))
+                           vibprod(iele,iv)= vibprod(iele,iv)
+     &                                     +S2(iv,j,ican)
+                        enddo
                      enddo
                   enddo
                elseif(iprod.gt.1)then
                   S2no=0.d0
-                  vibprod(:)=0.d0
+                 
                   S2pro(:,:,:)=0.d0
                   do iom=iomminprod,iommaxprod
                   do j=jiniprod,jmaxprod
-                     do iv=nviniprod,nvmaxprod
+                     do iv=nviniprod,noBCprod(j) !nvmaxprod
                         zzz=zS2prod(ie,iv,j,iom)
                         Av=dreal(zzz*dconjg(zzz))*0.25d0/(pi*pi)
                         S2pro(iv,j,iom)=Av*S2prodfac(ie,iv,j)
                         S2no=S2no+S2pro(iv,j,iom)
-                        vibprod(iv)=vibprod(iv)+S2pro(iv,j,iom)
+                        if(diabatic_prod_pot.gt.0)then    
+                           vibprod(1,iv)=vibprod(1,iv)+S2pro(iv,j,iom)
+                        else
+                           ivBC=vibelecprod(iv,j)
+                           ieleBC=elecprodmax(iv,j)
+                           vibprod(ieleBC,ivBC)=vibprod(ieleBC,ivBC)
+     &                                       +S2pro(iv,j,iom)                         
+                        endif
                      enddo
                   enddo
                   enddo
@@ -660,40 +691,84 @@ c! the partition.
          end if ! xm2 > 0     
 ***> printing total flux to products  
 
-            do iv=nviniprod,nvmaxprod
-               if(vibprod(iv).lt.1.d-90)vibprod(iv)=0.d0
-            enddo
-            if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
-            if(S2reac.lt.1.d-90)S2reac=0.d0
-            if(xm2.lt.1.d-3)then
+         do ielec=1,nelec
+         do iv=nviniprod,nvmaxprod
+            if(vibprod(ielec,iv).lt.1.d-90)vibprod(ielec,iv)=0.d0
+         enddo
+         enddo
+         if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
+         if(S2reac.lt.1.d-90)S2reac=0.d0
+         if(xm2.lt.1.d-3)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &          ,S2prodtot(ie)*photonorm
      &          ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
 
-            elseif(iprod.eq.0)then
+         elseif(iprod.eq.0)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &              ,reacfct(ie)
                write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
-            elseif(iprod.eq.1)then
+         elseif(iprod.eq.1)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2reac*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
-     &          ,(vibprod(iv)*photonorm,iv=nvini,min0(nvmaxprod,nvmax))
+     &           ,((vibprod(iele,iv)*photonorm
+     &                             ,iv=nvini,min0(nvmaxprod,nvmax))
+     &                                               ,iele=1,nelec)
                write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
-             else
-               write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
+         elseif(iprod.eq.2)then
+
+                write(19,"(501(1x,e17.7e3))")
+     &               etotS2(ie)/conve1/8065.5d0
+     &              ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+                
+            if(diabatic_prod_pot.gt.0)then
+                  write(20,"(501(1x,e17.7e3))")
+     &              etotS2(ie)/conve1/8065.5d0
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,S2no*photonorm
-     &            ,(vibprod(iv)*photonorm,iv=nviniprod,nvmaxprod)
-               write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
-     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+     &             ,(vibprod(1,iv)*photonorm,iv=nviniprod,nvmaxprod)
+ 
+            elseif(diabatic_prod_pot.eq.0)then
+                  write(20,"(501(1x,e17.7e3))")
+     &              etotS2(ie)/conve1/8065.5d0
+     &             ,S2prodtot(ie)*photonorm
+     &             ,(S2prodtot(ie)+S2reac)*photonorm
+     &             ,S2no*photonorm
+     &             ,((vibprod(ie,iv)*photonorm
+     &              ,iv=minvibprod_jYelec(jiniprod,iele)
+     &                         ,maxvibprod_jYelec(jiniprod,iele))
+     &                                               ,iele=1,nelec)
  
             endif
+         endif
+
+         if(xm2.gt.1.d-3.and.diabatic_prod_pot.eq.0)then
+            do ielec=1,nelec
+               iiiprodelec=ifileprodelec+ielec
+               write(iiiprodelec,"(501(1x,e17.7e3))")
+     &              etotS2(ie)/conve1/8065.5d0
+     &              ,(vibprod(ielec,iv)*photonorm
+     &              ,iv=minvibprod_jYelec(jiniprod,ielec)
+     &                          ,maxvibprod_jYelec(jiniprod,ielec) )
+
+            enddo ! ielec
+            iiiv=ivprodfile
+            do ielec=1,nelec
+               do iv=minvibprod_jYelec(jiniprod,ielec)
+     &                              ,maxvibprod_jYelec(jiniprod,ielec)
+                  iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
+!                  write(iiiv,"(501(1x,e17.7e3))")
+!     &              etotS2(ie)/conve1/8065.5d0
+
+               end do ! iv
+            end do ! ielec
+         
+         endif
          if(iwrt_reac_distri.eq.1.and.xm2.gt.1.d-3)then
 
 
@@ -737,6 +812,8 @@ c! the partition.
       do ielec=1,nelec
          iiielec=ifilelec+ielec
          close(iiielec)
+         iiiprodelec=ifileprodelec+ielec
+         close(iiiprodelec)
       enddo
       iiiv=ivfile
       do ielec=1,nelec
@@ -745,6 +822,14 @@ c! the partition.
             close(iiiv)
          enddo
       enddo
+      iiiv=ivprodfile
+!      do ielec=1,nelec
+!          do iv=minvibprod_(jiniprod,ielec)
+!     &                              ,maxvibprod_(jiniprod,ielec)
+!             iiiv=ivfile+(iv+1-nvini)+(nvmax-nvini+1)*(ielec-1)
+!             close(iiiv)
+!          enddo
+!      enddo
 
       return
       end       

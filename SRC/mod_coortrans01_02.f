@@ -127,9 +127,9 @@
             pini=0.d0
             if(ekinini.gt.0.d0)pini=dsqrt(ekinini*xmasa0*2.d0/hbr/hbr)
             paqini=apaqini(ie)
-            do iv=nviniprod,nvmaxprod
-               do j=jiniprod,jmaxprod
-                  ekinfin=etotS2(ie)-ediatprod(iv,j)
+            do j=jiniprod,jmaxprod
+               do iv=nviniprod,noBCprod(j) !nvmaxprod
+                 ekinfin=etotS2(ie)-ediatprod(iv,j)
                   if(ekinfin.gt.0.d0)then
                      pfin=dsqrt(ekinfin*xm2prod*2.d0/hbr/hbr)
                   else
@@ -149,8 +149,8 @@
 ! iphoto > 0  --> state-to-state in photodissociation
 
          do ie=1,netot
-            do iv=nviniprod,nvmaxprod
-               do j=jiniprod,jmaxprod
+            do j=jiniprod,jmaxprod
+               do iv=nviniprod,noBCprod(j) !nvmaxprod
  
                   ekinfin=etotS2(ie)-ediatprod(iv,j)
                   if(ekinfin.gt.0.d0)then
@@ -413,7 +413,7 @@
       do iom=iomminprod,iommaxprod
          jinip=max0(jiniprod,iom)
          do j=jinip,jmaxprod
-            do iv=nviniprod,nvmaxprod
+            do iv=nviniprod,noBCprod(j)  !nvmaxprod
                Rgb=Rbalinprod
                call prodwftrans(Rgb,prodaux,iv,j,iom)
 *norm check
@@ -765,7 +765,7 @@
               enddo
 *bf transformation angle
               do j=jinip,jmaxprod
-              do iv=nviniprod,nvmaxprod
+              do iv=nviniprod,noBCprod(j) !nvmaxprod
                  xxx=0.d0
                  
                  do iang=nangproj0,nangproj1
@@ -780,9 +780,9 @@
                enddo
             enddo  ! iomb
 
-      enddo ! ican
+         end do ! ican
 
-      ENDIF ! idproc=0
+      END IF ! idproc=0
 
       return
       end subroutine prodpaq
@@ -809,7 +809,7 @@
          do iomprod=iomminprod,iommaxprod
             jinip=max0(jiniprod,iomprod)
             do j=jinip,jmaxprod
-            do iv=nviniprod,nvmaxprod
+            do iv=nviniprod,noBCprod(j)  !nvmaxprod
                zzz=dcmplx(Cvjprod(iv,j,iomprod),0.d0)
                do ie=1,netot
                   zS2prod(ie,iv,j,iomprod)=

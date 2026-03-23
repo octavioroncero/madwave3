@@ -348,7 +348,7 @@ C*    (X(I),I=1,NX) FOR THE FUNCTION (F(I),I=1,NX).                    *
 C***********************************************************************
 C
 C
-      PARAMETER (NXMAX=20000)
+      PARAMETER (NXMAX=60000)
 C
       DIMENSION F(ndim,2),X(ndim)
       DIMENSION HX(NXMAX)
@@ -927,7 +927,7 @@ C***********************************************************************
 C***********************************************************************
       IMPLICIT DOUBLE PRECISION(A-H,L-M,O-Z)
 C
-      PARAMETER(NX2MAX=20000)
+      PARAMETER(NX2MAX=60000)
 C
       DIMENSION MU(N),LAMBDA(N),X(N),B(N)
       DIMENSION PIV(NX2MAX)
@@ -1811,11 +1811,14 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
 ***********************************************************************
 
       subroutine bndbc1ele(Eval,fun,potmatrix,xm
-     &      ,rmis,rfin,nvini,nvmax,j,npun,nelec,max_viblevels,ivreal)
+     &     ,rmis,rfin,nvini,nvmax,j,npun,nelec
+     & ,vnumber,enumber,max_viblevels,ivreal)
       implicit none
 
       integer,intent(in) :: nelec,j,npun,nvini,nvmax
       integer,intent(in) :: max_viblevels(nelec)
+      integer,intent(inout) :: vnumber(nvini:nvmax)
+      integer,intent(inout) :: enumber(nvini:nvmax)
       real*8,intent(inout) :: Eval(nvini:nvmax)
       real*8,intent(inout) :: fun(npun,nelec,nvini:nvmax)      
       real*8,intent(in) :: potmatrix(npun,nelec,nelec)
@@ -1827,7 +1830,8 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
 
       Eval(:)=0.d0
       fun(:,:,:)=0.d0
-      
+      vnumber(:)=0
+      enumber(:)=0
 *
 * calculate the bound state of a diatomic system
 * for several uncoupled electronic states (nelec)
@@ -1906,6 +1910,8 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
                   end do
 !                 write(6,*)' ielec= ',ie,' ivreal=',ivreal
                  
+                  vnumber(ivreal)=iv
+                  enumber(ivreal)=ie
                   
                end if ! Energy below ekinmax
             end if              ! eigval < pot(Rmax)

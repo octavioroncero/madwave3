@@ -14,17 +14,18 @@
       real*8,allocatable :: total_sigma(:,:)
       real*8 :: Ezot,Ecm,Temperature_eV,par,x1,x2,e0,sig_read
       real*8 :: Emin_photon,Emax_photon,deltaE_photon,eee
-      integer :: iread_first,iphoton_read
+      integer :: iread_first,iphoton_read,iold
+      real*8, allocatable :: xx(:),ff(:,:)
 
       Temperature_eV=Temperature_K*8.61738569d-5
       Emin_photon=Emin_photon_eV/27.211
       Emax_photon=Emax_photon_eV/27.211
       deltaE_photon=( Emax_photon- Emin_photon)/dble(ne_photon+1)
-
+     
       allocate( Ebound(0:Jtotmax,nvmax,-1:1)
      &         ,partition(0:Jtotmax,nvmax,-1:1)
      &         ,sigma(ne_photon,0:Jtotmax,nvmax,-1:1)
-     &     ,Ephoton(ne_photon)
+     &     ,Ephoton(ne_photon),xx(ne_photon),ff(ne_photon,2)
      &     ,total_sigma(ne_photon,-1:1)
      &     )
 
@@ -62,7 +63,7 @@
       
       write(6,*)' lower energy (eV) = ',e0
 
-!     Calculating Parition function
+!     Calculating Partition function
 
       
       total_partition=0.d0
@@ -77,7 +78,7 @@
 
       end do                    ! Jtot
       
-!     renormalizing to 1
+!     renormalizing 
 
       write(6,*)' Jtot,ipar,iv, weight '
       do Jtot=0,Jtotmax
@@ -90,7 +91,7 @@
 
       end do  ! Jtot
 
-!     reading spectra
+!     reading individual spectra
 
       iread_first=0
       do Jtot=0,Jtotmax
@@ -112,15 +113,27 @@
                   write(6,*)' reading ',name
                   open(10,file=name,status='old')
 
+                  xx(:)=0.d0
+                  ff(:,:)=0.d0
                   do ie=1,ne_photon
                      read(10,*)x1,sig_read,x2,eee
-                     iphoton_read=(eee-Emin_photon)/deltaE_photon+1
+                     xx(ie)=eee
+                     ff(ie,1)=sig_read
+                     ff(ie,2)=0.d0
+                  enddo
 
-                     if(iphoton_read.ge.1.and
-     &                        .iphoton_read.le.ne_photon)then
+                  call splset(ff,xx,ne_photon,ne_photon)
+                  iold=2
+                  do ie=1,ne_photon
+                     eee=Ephoton(ie)
+                     sig_read=0.d0
+                     if(eee.ge.xx(1).and.eee.le.xx(ne_photon))then
+                        call splinqq(ff,xx,iold,ne_photon,eee,ne_photon
+     &                       ,sig_read)
+                     
       
-                        total_sigma(iphoton_read,Jdelta)=
-     &                        total_sigma(iphoton_read,Jdelta) +sig_read
+                        total_sigma(ie,Jdelta)=
+     &                        total_sigma(ie,Jdelta) +sig_read
      &                         *dble(Jfinal*2+1)*partition(Jtot,iv,ipar)
                       end if
                   end do

@@ -65,7 +65,16 @@
       write(6,*)'norealproc_mem= ',norealproc_mem
       write(6,*)'nointegerproc_mem= ',nointegerproc_mem
       call flush(6)
- 
+*     *> Only implemented for inc=1 (heteronuclear diatomic)
+
+      if(inc.eq.2)then
+         write(6,*)' This version is only implemented for'
+         write(6,*)'   open heteronuclear diatom'
+         write(6,*)'     + close shell atom'
+         call flush(6)
+         stop
+      endif
+      
 **>> electronic/Omega basis set
 
       if(inc.eq.2)then

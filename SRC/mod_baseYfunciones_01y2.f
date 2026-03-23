@@ -1,7 +1,7 @@
       module mod_baseYfunciones_01y2
       use mod_gridYpara_01y2
       use mod_pot_01y2
-      implicit none 
+      implicit none
 
 !---------------------------------------------------------------------------------------!
 ! Determination of  base for the AB + C  in a grid on R=R2, r=R1,gam                    !
@@ -26,6 +26,10 @@
       real*8, allocatable :: Djmmp(:,:,:,:),Djprod(:,:,:,:),pm(:)
       real*8, allocatable :: ediat(:,:,:),fd(:,:,:,:)
       real*8, allocatable :: ediatprod(:,:),fdprod(:,:,:,:)
+      integer , allocatable :: elecprodmax(:,:),vibelecprod(:,:)
+      integer , allocatable :: minvibprod_jYelec(:,:)
+      integer , allocatable :: maxvibprod_jYelec(:,:)
+      integer , allocatable :: enumber_prod(:),vnumber_prod(:)
       
       integer :: ndim
  !--------------------------------------------------
@@ -1076,12 +1080,18 @@ c            endif
       integer :: ierror,ir,ie,je,j,iv,ielec,ir2,ielecmax,ivreal
 
       allocate(ediatprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
-     &  ,fdprod(n2prod1,nviniprod:nvmaxprod,jiniprod:jmaxprod,nelecmax)
-     &     ,noBCprod(jiniprod:jmaxprod)
-     &     , stat=ierror)
+     & ,fdprod(n2prod1,nviniprod:nvmaxprod,jiniprod:jmaxprod,nelecmax)
+     & ,elecprodmax(nviniprod:nvmaxprod,jiniprod:jmaxprod)
+     &     ,vibelecprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
+     &     ,enumber_prod(nviniprod:nvmaxprod)
+     &     ,vnumber_prod(nviniprod:nvmaxprod)
+     & ,noBCprod(jiniprod:jmaxprod)
+     & , stat=ierror)
 
       fdprod(:,:,:,:)=0.d0
       noBCprod(:)=0
+      elecprodmax(:,:)=0
+      vibelecprod(:,:)=0.d0
 
       nointegerproc_mem=nointegerproc_mem+(jmaxprod-jiniprod+1)
       norealproc_mem=norealproc_mem
@@ -1154,6 +1164,7 @@ c            endif
                
                call bndbc1ele(Eval,fun,potmatrix,xm
      &              ,rmis,rfin,nviniprod,nvmaxprod,j,n2prod1,nelec
+     &              ,vnumber_prod,enumber_prod
      &              ,max_viblevels,ivreal)
 
             end if
@@ -1180,6 +1191,13 @@ c            endif
                xnorm=xnorm
                write(6,'(1(2x,i4),2(2x,e15.7),(2x,"elec= ",i2))')iv
      &              ,ediatprod(iv,j)/conve1/eV2cm,xnorm,ielecmax
+               if(diabatic_prod_pot.gt.0)then
+                  elecprodmax(iv,j)=ielecmax
+                  vibelecprod(iv,j)=iv
+               else
+                  elecprodmax(iv,j)=enumber_prod(iv)
+                  vibelecprod(iv,j)=vnumber_prod(iv)
+               endif    
                call flush(6)
             enddo ! iv
 
@@ -1212,7 +1230,8 @@ c            endif
             do j=jiniprod,jmaxprod
                write(10,*)j,noBCprod(j),n2prod1,nelecmax
                do iv=nviniprod,noBCprod(j)
-                  write(10,*)iv,ediatprod(iv,j)
+                  write(10,*)iv,ediatprod(iv,j),elecprodmax(iv,j)
+     &                                         ,vibelecprod(iv,j)
                   do ir2=1,n2prod1
                   write(10,*)(fdprod(ir2,iv,j,ielec),ielec=1,nelecmax)
                   enddo
@@ -1224,7 +1243,9 @@ c            endif
                do iv=nviniprod,noBCprod(j)
                   write(name,'("wv02-v",i2.2,"j0.dat")')iv
                   open(10,file=name,status='new')
-                  write(10,*)iv,ediatprod(iv,j)/conve/ev2cm 
+                  write(10,*)iv,ediatprod(iv,j)/conve/ev2cm
+     &                          ,elecprodmax(iv,j)
+     &                          ,vibelecprod(iv,j)
                   do ir2=1,n2prod1
                      r=rmis2+dble(ir2-1)*ah2
                      write(10,*)r
@@ -1253,13 +1274,24 @@ c            endif
       implicit none
       include "mpif.h"
 
-      integer :: ierror,ielec,j,iv,ir2,iielec,jj,iiv,nn2prod1,nnelec
+      integer :: ierror,ielec,j,iv,ir2,iielec,jj,iiv,nn2prod1,nnelec,ie
       real*8 :: r2,xnorm
 
       allocate(ediatprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
      &  ,fdprod(n2prod1,nviniprod:nvmaxprod,jiniprod:jmaxprod,nelecmax)
-     &    ,noBCprod(jiniprod:jmaxprod)
+     &  ,elecprodmax(nviniprod:nvmaxprod,jiniprod:jmaxprod)
+     &     ,vibelecprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
+     &     ,minvibprod_jYelec(jiniprod:jmaxprod,nelecmax)
+     &     ,maxvibprod_jYelec(jiniprod:jmaxprod,nelecmax)
+     &  ,noBCprod(jiniprod:jmaxprod)
      &       , stat=ierror)
+      
+      fdprod(:,:,:,:)=0.d0
+      noBCprod(:)=0
+      elecprodmax(:,:)=0
+      vibelecprod(:,:)=0.d0
+      minvibprod_jYelec(:,:)=0
+      maxvibprod_jYelec(:,:)=-1
       
       nointegerproc_mem=nointegerproc_mem+(jmaxprod-jiniprod+1)
       norealproc_mem=norealproc_mem
@@ -1303,7 +1335,8 @@ c            endif
                stop
             endif
             do iv=nviniprod,noBCprod(j)
-               read(10,*)iiv,ediatprod(iv,j)
+               read(10,*)iiv,ediatprod(iv,j),elecprodmax(iv,j)
+     &                                      ,vibelecprod(iv,j)
                xnorm=0.d0
                do ir2=1,nn2prod1
                   read(10,*)(fdprod(ir2,iv,j,ielec),ielec=1,nnelec)
@@ -1343,17 +1376,30 @@ c            endif
 !     writting energies
 
       write(6,*)
-      write(6,*)' j   v   E(eV) '
-      write(6,*)'-------------------'
+      write(6,*)' j   n   E(eV)    ie    v_e'
+      write(6,*)'----------------------------'
       write(6,*)
       do j=jiniprod,jmaxprod
          if(noBCprod(j).gt.0)then
          do iv=nviniprod,noBCprod(j)
             write(6,*)j,iv,ediatprod(iv,j)/(conve1*eV2cm)
-         enddo
-         endif
-      enddo
-      
+     &           ,  elecprodmax(iv,j), vibelecprod(iv,j)
+
+            ie=elecprodmax(iv,j)
+           
+            if(vibelecprod(iv,j).gt.maxvibprod_jYelec(j,ie))then
+               maxvibprod_jYelec(j,ie)=vibelecprod(iv,j)
+            end if
+         end do
+         end if
+      end do
+      do j=jiniprod,jmaxprod
+         do ie=1,nelec
+            write(6,*)'j= ',j,' ie=',ie
+     &                         ,' min_v= ', minvibprod_jYelec(j,ie)
+     &                         ,' max_v= ', maxvibprod_jYelec(j,ie)
+         end do
+      end do 
       return
       end subroutine product_radialf_read
 !--------------------------------------------------

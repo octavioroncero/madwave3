@@ -158,6 +158,7 @@
      &   ,dble(nointegerproc_mem*4+norealproc_mem*8)*1.d-9
       call flush(6)
 
+      
       return
       end subroutine set_vectors_Hphi
 !--------------------------------------------------
@@ -740,13 +741,9 @@ c            endif
             jang=indangreal(jangp,idproc)
 
              
-             do ir1=1,npun1
-                do ir2=1,npun2
-                   rphi0(ir2,ir1)=0.d0
-                   raux(ir2,ir1)=0.d0
-                   xp2r2p2r1(ir2,ir1)=0.d0
-                enddo
-             enddo
+             rphi0(:,:)=0.d0
+             raux(:,:)=0.d0
+             xp2r2p2r1(:,:)=0.d0
 
              ir=1
              i0=indtotproc(ir,icanp,jangp,idproc)-1
@@ -1068,12 +1065,9 @@ c            endif
          do jangp=1,nanguproc
             jang=indangreal(jangp,idproc)
 
-             
-             do ir1=1,npun1
-                rphi0(ir1)=0.d0
-                raux(ir1)=0.d0
-                xp2r2p2r1(ir1)=0.d0
-             enddo
+            rphi0(:)=0.d0
+            raux(:)=0.d0
+            xp2r2p2r1(:)=0.d0
 
              do ir=1,npunreal(jang)
                 i=indtotproc(ir,icanp,jangp,idproc)
