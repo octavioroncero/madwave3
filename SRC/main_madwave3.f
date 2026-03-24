@@ -701,7 +701,7 @@ c! the partition.
          if(xm2.lt.1.d-3)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &          ,S2prodtot(ie)*photonorm
-     &          ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+     &          ,(S2prodelectot(ie,ielec)*photonorm,ielec=1,nelecmax)
 
          elseif(iprod.eq.0)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
@@ -709,21 +709,21 @@ c! the partition.
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &              ,reacfct(ie)
                write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
-     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+     &             ,(S2prodelectot(ie,ielec)*photonorm,ielec=1,nelecmax)
          elseif(iprod.eq.1)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &             ,S2reac*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
-     &           ,((vibprod(iele,iv)*photonorm
+     &           ,((vibprod(ielec,iv)*photonorm
      &                             ,iv=nvini,min0(nvmaxprod,nvmax))
-     &                                               ,iele=1,nelec)
+     &                                               ,ielec=1,nelec)
                write(19,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
-     &             ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+     &             ,(S2prodelectot(ie,ielec)*photonorm,ielec=1,nelecmax)
          elseif(iprod.eq.2)then
 
                 write(19,"(501(1x,e17.7e3))")
      &               etotS2(ie)/conve1/8065.5d0
-     &              ,(S2prodelectot(ie,iele)*photonorm,iele=1,nelecmax)
+     &           ,(S2prodelectot(ie,ielec)*photonorm,ielec=1,nelecmax)
                 
             if(diabatic_prod_pot.gt.0)then
                   write(20,"(501(1x,e17.7e3))")
@@ -739,10 +739,10 @@ c! the partition.
      &             ,S2prodtot(ie)*photonorm
      &             ,(S2prodtot(ie)+S2reac)*photonorm
      &             ,S2no*photonorm
-     &             ,((vibprod(ie,iv)*photonorm
-     &              ,iv=minvibprod_jYelec(jiniprod,iele)
-     &                         ,maxvibprod_jYelec(jiniprod,iele))
-     &                                               ,iele=1,nelec)
+     &             ,((vibprod(ielec,iv)*photonorm
+     &              ,iv=minvibprod_jYelec(jiniprod,ielec)
+     &                         ,maxvibprod_jYelec(jiniprod,ielec))
+     &                                               ,ielec=1,nelec)
  
             endif
          endif
