@@ -243,7 +243,7 @@
       real*8 :: flux_diat_arr2(netot,nelec)
       real*8 :: energy_ini
       character*50 :: name
-      integer :: ie,ielec,iv,ivtot
+      integer :: ie,ielec,iv
       real*8 :: ephoton,factor,x2,x3,x4,eee,fff,etot
       real*8 :: fluxvib(nviniprod:nvmaxprod)
 
@@ -254,29 +254,52 @@
 
       write(6,*)' nviniprod,nvmaxprod=', nviniprod,nvmaxprod
       write(6,*)' nelec,maxvibleves=',nelec,max_viblevels
-      open(10,file='S2prod',status='old')
-      do ie=1,netot
-         read(10,*)etot,x2,x3,x4
-     &             ,(fluxvib(ivtot),ivtot=nviniprod,nvmaxprod)
-         ephoton=etot/au2eV-energy_ini
-         do ivtot=nviniprod,nvmaxprod
-            fluxvib(ivtot)=ephoton*factor*fluxvib(ivtot)
-         end do
 
-         ivtot=nviniprod-1
-         do ielec=1,nelec
-            if(max_viblevels(ielec).gt.0)then
-               do iv=1,max_viblevels(ielec)
-                  ivtot=ivtot+1
-                  if(ie.eq.1)write(6,*)ivtot,iv,ielec
-                  flux_diat_arr2(ie,ielec)=flux_diat_arr2(ie,ielec)
-     &                 +fluxvib(ivtot)
-               end do
-            end if
-         end do
+      do ielec=1,nelec
+         write(name,"('distriS2prod.elec',i2.2)")ielec
+         open(10,file=name,status='old')
+         do ie=1,netot
+            read(10,*)etot,(fluxvib(iv)
+     &              ,iv=minvibprod_jYelec(jiniprod,ielec)
+     &           ,maxvibprod_jYelec(jiniprod,ielec) )
+            
+            ephoton=etot/au2eV-energy_ini
+            
+            do iv=minvibprod_jYelec(jiniprod,ielec)
+     &           ,maxvibprod_jYelec(jiniprod,ielec)
 
-      end do
-      close(10)
+               flux_diat_arr2(ie,ielec) = flux_diat_arr2(ie,ielec)
+     &              + fluxvib(iv) * ephoton * factor
+
+            end do  ! iv
+         end do   ! ie
+         close(10)
+      end do ! ielec
+
+      
+!      open(10,file='S2prod',status='old')
+!      do ie=1,netot
+!         read(10,*)etot,x2,x3,x4
+!     &             ,(fluxvib(ivtot),ivtot=nviniprod,nvmaxprod)
+!         ephoton=etot/au2eV-energy_ini
+!         do ivtot=nviniprod,nvmaxprod
+!            fluxvib(ivtot)=ephoton*factor*fluxvib(ivtot)
+!         end do
+!
+!         ivtot=nviniprod-1
+!         do ielec=1,nelec
+!            if(max_viblevels(ielec).gt.0)then
+!               do iv=1,max_viblevels(ielec)
+!                  ivtot=ivtot+1
+!                  if(ie.eq.1)write(6,*)ivtot,iv,ielec
+!                  flux_diat_arr2(ie,ielec)=flux_diat_arr2(ie,ielec)
+!     &                 +fluxvib(ivtot)
+!               end do
+!            end if
+!         end do
+!
+!      end do
+!      close(10)
       
       return
       end
