@@ -1000,6 +1000,7 @@ C
 C
       RETURN
       END
+!----------------------------------------------------------------
       subroutine sinmom(box,npun,npundim,xmred,hbr,pr,p2r)
       implicit real*8(a-h,o-z)
 
@@ -1114,6 +1115,7 @@ C
 
       return
       end
+!--------------------------------------------------------------------
       subroutine fftmom(box,npun,npundim,xmred,hbr,pr,p2r)
       implicit real*8(a-h,o-z)
 
@@ -1891,10 +1893,10 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
 
 !     eigenvalues
          
-         do iv=1,min0(npun,max_viblevels(ie))
+         do iv=0,min0(npun,max_viblevels(ie)-1)
             if(potmatrix(npun,ie,ie)-alpha(iv).gt.1.d-2)then
                
-               e0=alpha(iv)*xz1
+               e0=alpha(iv+1)*xz1
                do ir=1,npun
                   v(ir)=vv(ir)*xz1
                end do

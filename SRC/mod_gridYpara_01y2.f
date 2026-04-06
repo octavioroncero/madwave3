@@ -144,6 +144,7 @@
          read(10,nml = inputprod)
          if(iommaxprod.eq.0)iommaxprod=min0(Jtot,jmaxprod)
          Emincut_prod=Emincut_prod_eV/conve1/eV2cm
+         if(nelecmax.eq.1)max_viblevels(1)=nvmaxprod-nviniprod+1
 
          write(6,nml = inputprod)
          call flush(6)
@@ -153,7 +154,6 @@
             write(6,*)'   setting n2prod1=npun2'
             n2prod1=npun2
          endif
-         if(nelecmax.eq.1)max_viblevels(1)=nvmaxprod-nviniprod+1
          icount=0
          do ie=1,nelecmax
             icount=icount+max_viblevels(ie)

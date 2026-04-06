@@ -160,10 +160,10 @@ c! the partition.
 
 !     preparing initial wave packet reading electric dipole transition
 
-      if (iphoto.eq.0)then
-                              ! initial collision wave packet
+      if (iphoto.eq.0)then ! initial collision wave packet
+
          call set_colini
-      
+               
       else if (iphoto.eq.1.or.iphoto.eq.2.or.iphoto.eq.3)then
          if(iphoto.eq.1)call read_trans_dipole
          call dip_bnd
@@ -592,12 +592,14 @@ c! the partition.
          write(name,'("S2prodelec")')
          open(19,file=name,status='unknown')
       endif
-! for products
+!     for products
+      if(iprod.gt.0)then
       do ielec=1,nelec
          iiiprodelec=ifileprodelec+ielec
          write(name,"('distriS2prod.elec',i2.2)")ielec
          open(iiiprodelec,file=name,status='unknown')
-      enddo
+      end do
+      end if
       iiiv=ivprodfile
 !      do ielec=1,nelec
 !         do iv=minvibprod_(jiniprod,ielec),maxvibprod_(jiniprod,ielec)
@@ -675,13 +677,16 @@ c! the partition.
                         Av=dreal(zzz*dconjg(zzz))*0.25d0/(pi*pi)
                         S2pro(iv,j,iom)=Av*S2prodfac(ie,iv,j)
                         S2no=S2no+S2pro(iv,j,iom)
-                        if(diabatic_prod_pot.gt.0)then    
+                        if(diabatic_prod_pot.gt.0.or.nelecmax.eq.1)then    
                            vibprod(1,iv)=vibprod(1,iv)+S2pro(iv,j,iom)
                         else
                            ivBC=vibelecprod(iv,j)
                            ieleBC=elecprodmax(iv,j)
-                           vibprod(ieleBC,ivBC)=vibprod(ieleBC,ivBC)
-     &                                       +S2pro(iv,j,iom)                         
+                           if(ivBC.le.nvmaxprod.and
+     &                          .ivBC.ge.nviniprod)then
+                             vibprod(ieleBC,ivBC)=vibprod(ieleBC,ivBC)
+     &                            +S2pro(iv,j,iom)
+                           endif
                         endif
                      enddo
                   enddo
@@ -698,6 +703,7 @@ c! the partition.
          enddo
          if(S2prodtot(ie).lt.1.d-90)S2prodtot(ie)=0.d0
          if(S2reac.lt.1.d-90)S2reac=0.d0
+
          if(xm2.lt.1.d-3)then
                write(20,"(501(1x,e17.7e3))")etotS2(ie)/conve1/8065.5d0
      &          ,S2prodtot(ie)*photonorm
@@ -747,7 +753,7 @@ c! the partition.
             endif
          endif
 
-         if(xm2.gt.1.d-3.and.diabatic_prod_pot.eq.0)then
+         if(xm2.gt.1.d-3.and.diabatic_prod_pot.eq.0.and.iprod.gt.0)then
             do ielec=1,nelec
                iiiprodelec=ifileprodelec+ielec
                write(iiiprodelec,"(501(1x,e17.7e3))")
@@ -809,12 +815,15 @@ c! the partition.
       close(20)
       close(19)
 
+      if(iprod.gt.0)then
       do ielec=1,nelec
          iiielec=ifilelec+ielec
          close(iiielec)
          iiiprodelec=ifileprodelec+ielec
          close(iiiprodelec)
       enddo
+      end if
+      
       iiiv=ivfile
       do ielec=1,nelec
          do iv=nvini,noBCstates(jini,ielec)

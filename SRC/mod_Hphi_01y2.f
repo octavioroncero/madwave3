@@ -271,27 +271,31 @@
                   endif
                enddo
 !     --> projection up spurious
-               yyy=rotcutmax
-               do k=1,nojbas(ican)
-                  do i=1,nangu
-                  do jp=1,nanguproc
-                     j=indangreal(jp,idproc)
-                     x1=Djmmp(i,jbas(k,ican),ielec,iom)
-                     x2=Djmmp(j,jbas(k,ican),ielec,iom)
-                     xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)-yyy*x1*x2
-                   end do
-                   end do
-               end do
-               do k=0,2*(nangu2-1)
-                  do i=1,nangu
-                  do jp=1,nanguproc
-                     j=indangreal(jp,idproc)
-                     x1=D00(i,k)
-                     x2=D00(j,k)
-                     xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)+yyy*x1*x2
-                   end do
-                   end do
-               end do
+               if(iom.gt.0.and.Proj_j2_up.ne.0)then
+                  yyy=rotcutmax
+                  do k=1,nojbas(ican)
+                     do i=1,nangu
+                     do jp=1,nanguproc
+                        j=indangreal(jp,idproc)
+                        x1=Djmmp(i,jbas(k,ican),ielec,iom)
+                        x2=Djmmp(j,jbas(k,ican),ielec,iom)
+                        xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)
+     &                                       -yyy*x1*x2
+                      end do
+                      end do
+                  end do
+                  do k=0,2*(nangu2-1)
+                     do i=1,nangu
+                     do jp=1,nanguproc
+                        j=indangreal(jp,idproc)
+                        x1=D00(i,k)
+                        x2=D00(j,k)
+                        xj2(ir1,i,jp,icanp)=xj2(ir1,i,jp,icanp)
+     &                                     +yyy*x1*x2
+                     end do
+                     end do
+                  end do
+               end if ! iom>0
 !     --< end projection
 
 

@@ -1091,7 +1091,7 @@ c            endif
       fdprod(:,:,:,:)=0.d0
       noBCprod(:)=0
       elecprodmax(:,:)=0
-      vibelecprod(:,:)=0.d0
+      vibelecprod(:,:)=0
 
       nointegerproc_mem=nointegerproc_mem+(jmaxprod-jiniprod+1)
       norealproc_mem=norealproc_mem
@@ -1225,7 +1225,7 @@ c            endif
 
 ! writing products functions
             
-         if(idproc.eq.0)then
+         if(idproc.eq.0.and.iprod.gt.0)then
             open(10,file='func/prodwf',status='new')
             do j=jiniprod,jmaxprod
                write(10,*)j,noBCprod(j),n2prod1,nelecmax
@@ -1290,7 +1290,7 @@ c            endif
       noBCprod(:)=0
       elecprodmax(:,:)=0
       vibelecprod(:,:)=0.d0
-      minvibprod_jYelec(:,:)=0
+      minvibprod_jYelec(:,:)=nviniprod
       maxvibprod_jYelec(:,:)=-1
       
       nointegerproc_mem=nointegerproc_mem+(jmaxprod-jiniprod+1)

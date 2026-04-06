@@ -46,7 +46,7 @@
 *     for multiple electronic states: if products electronic states
 *        are couple it must be set to diabatic_prod_pot=1, otherwise =0
 
-      integer:: diabatic_prod_pot
+      integer:: diabatic_prod_pot,Proj_j2_Up
 
       contains
 **********************************
@@ -62,7 +62,7 @@
       namelist /inputpotmass/system,xm1,xm0,xm2
      &     ,VcutmaxeV,radcutmaxeV,rotcutmaxeV
      &     ,radau,R1inf_radial_functions,R2inf_radial_functions
-     &     ,No_ref_energy,diabatic_prod_pot
+     &     ,No_ref_energy,diabatic_prod_pot,Proj_j2_Up
 
 
          write(6,'(40("_"),/,10x,"Pot_mod",/,40("_"))')
@@ -72,6 +72,7 @@
          R2inf_radial_functions=100.d0
          No_ref_energy=1
          diabatic_prod_pot=0
+         Proj_j2_up=0
          read(10,nml = inputpotmass)
          write(6,'(80("-"),/,10x
      &      ,"Mass and pot determination for 01+2= ",a20

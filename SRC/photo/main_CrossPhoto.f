@@ -82,7 +82,7 @@
 !
 !     Reading fluxes on rovibrational states of products in iarr=2
 
-        call read_diat_prod2_flux(flux_diat_arr2,energy_ini,nelec,netot)
+        call read_diat_prod2_flux(flux_diat_arr2,energy_ini,netot)
       
 !     Infering flux of rearrangement 3 (iarr3)
 
@@ -236,13 +236,16 @@
       
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       subroutine read_diat_prod2_flux(flux_diat_arr2,energy_ini
-     &                              ,nelec,netot)
+     &                              ,netot)
+!     &                              ,nelec,netot)
       use mod_gridYpara_01y2
+      use mod_baseYfunciones_01y2
       implicit none
-      integer :: nelec,netot
+      integer :: netot
+!      integer :: nelec,netot
       real*8 :: flux_diat_arr2(netot,nelec)
       real*8 :: energy_ini
-      character*50 :: name
+!      character*50 :: name
       integer :: ie,ielec,iv
       real*8 :: ephoton,factor,x2,x3,x4,eee,fff,etot
       real*8 :: fluxvib(nviniprod:nvmaxprod)
@@ -256,6 +259,10 @@
       write(6,*)' nelec,maxvibleves=',nelec,max_viblevels
 
       do ielec=1,nelec
+         if(maxvibprod_jYelec(jiniprod,ielec).ge
+     &         . minvibprod_jYelec(jiniprod,ielec) )then
+
+         fluxvib(:)=0.d0
          write(name,"('distriS2prod.elec',i2.2)")ielec
          open(10,file=name,status='old')
          do ie=1,netot
@@ -272,8 +279,10 @@
      &              + fluxvib(iv) * ephoton * factor
 
             end do  ! iv
+            write(6,*)ielec,etot,flux_diat_arr2(ie,ielec)
          end do   ! ie
          close(10)
+         end if
       end do ! ielec
 
       
