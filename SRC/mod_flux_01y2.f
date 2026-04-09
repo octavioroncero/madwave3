@@ -346,27 +346,28 @@
       include "mpif.h"
       integer :: ican,ierror
 
-       icanref=0
-       do ican=1,ncan
-          if(nelebas(ican).eq.ielecref
+      icanref=0
+         if(No_ref_energy.eq.1)then
+          do ican=1,ncan
+             if(nelebas(ican).eq.ielecref
      &             .and.iombas(ican).eq.iabs(iomref))icanref=ican
-       enddo
-       if(icanref.ge.1.and.icanref.le.ncan)then
-          if(idproc.eq.0)write(6,*) '  --> reference channel is ican= '
-     &                                ,icanref
-          if(idproc.eq.0)write(6,*) '        for ielec ',ielecref
+          end do
+          if(icanref.ge.1.and.icanref.le.ncan)then
+             if(idproc.eq.0)write(6,*) 
+     &                '  --> reference channel is ican= ',icanref
+             if(idproc.eq.0)write(6,*) '        for ielec ',ielecref
      &                                ,'and Omega= ',iomref
-       elseif(iomref.lt.0.and.iommax.eq.0)then
-          write(6,*)'  for iommax=0, set iomref=0 and try again'
-          call flush(6)
-          stop
-       else
-          write(6,*)'  icanref can not be set'
-          call flush(6)
-          call MPI_BARRIER(MPI_COMM_WORLD, ierror)
-          stop
-       endif
-
+          elseif(iomref.lt.0.and.iommax.eq.0)then
+             write(6,*)'  for iommax=0, set iomref=0 and try again'
+             call flush(6)
+             stop
+          else
+             write(6,*)'  icanref can not be set'
+             call flush(6)
+             call MPI_BARRIER(MPI_COMM_WORLD, ierror)
+             stop
+          end if
+       end if
 ! For Iphoto=0
 
        if(iphoto.eq.0)then

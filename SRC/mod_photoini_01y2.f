@@ -15,6 +15,7 @@
       save
 
       integer :: Jtotini,iparini,nvbound,nprocbnd,maxbnddim
+      integer :: sigmaini_elec
       integer :: ifileauto,igridbnd
       real*8, allocatable :: dipol(:,:,:,:)
       real*8, allocatable :: coupling(:,:,:)
@@ -175,10 +176,12 @@
       integer :: max_iom
 
 *********************************************************
-      namelist /inputbnd/Jtotini,iparini,nvbound,nprocbnd,maxbnddim
+      namelist /inputbnd/Jtotini,iparini,sigmaini_elec
+     &           ,nvbound,nprocbnd,maxbnddim
      &                  ,igridbnd
 
       igridbnd=1
+      sigmaini_elec=+1
       write(6,'(40("="),/,10x,"dip_bndgrid",/,40("="))')
       write(6,*)
       write(6,*)'  grid and basis data'

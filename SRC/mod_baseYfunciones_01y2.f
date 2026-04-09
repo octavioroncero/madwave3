@@ -140,9 +140,9 @@
          ipar=sigdiat(ielec)*sigatom(ielec)*isign
 
          ifail=0
-         if(iom.eq.0)then
+         if(iom.eq.0.and.iomdi.eq.0.and.iomat.eq.0)then
             if(iparity.ne.ipar)ifail=1
-         endif
+         end if
          if(ifail.eq.0)then
 
             jmin=j0
