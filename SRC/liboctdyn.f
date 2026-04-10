@@ -1894,7 +1894,7 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
 !     eigenvalues
          
          do iv=0,min0(npun,max_viblevels(ie)-1)
-            if(potmatrix(npun,ie,ie)-alpha(iv).gt.1.d-2)then
+            if(potmatrix(npun,ie,ie)-alpha(iv+1).gt.1.d-2)then
                
                e0=alpha(iv+1)*xz1
                do ir=1,npun
