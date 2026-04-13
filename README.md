@@ -31,7 +31,7 @@ All source programs (in fortran) and examples are downloaded by cloning
 the repository::
 
 ```
- git clone https://github.com/qmolastro/madwave3
+ git clone https://github.com/octavioroncero/madwave3
 ```
 
 that will create the directory madwave3 with 3 sub-directories
