@@ -1,0 +1,78 @@
+---
+Casing:
+  Identifiers:     Preserve
+  Keywords:        Lowercase
+  LogicalConstants: Lowercase
+  LogicalOperators: Lowercase
+  RelationalOperators: Lowercase
+  UserDefinedOperators: Lowercase
+ColumnLimit:     100
+CommentDirectivePrefixes: []
+DisabledDirectivePrefixes: []
+IndentSize:      2
+IndentExceptions:
+  ModuleContains:  IndentBeforeAndAfter
+  Comments:        Indent
+FixedIndentSize: 0
+ContinuationIndentSize: 4
+DoubleColonSeparator: AddAlways
+EndOfLineNormalization: Autodetect
+EndStatementFormat: EndStructureAndName
+EndStatementSeparation:
+  EndAssociate:    Separated
+  EndBlockConstruct: Separated
+  EndBlockData:    Separated
+  EndCritical:     Separated
+  EndTeam:         Separated
+  EndDoLoop:       Separated
+  EndEnum:         Separated
+  EndEnumerationType: Separated
+  EndForall:       Separated
+  EndFunction:     Separated
+  EndIf:           Separated
+  EndInterface:    Separated
+  EndModule:       Separated
+  EndModuleProcedure: Separated
+  EndProgram:      Separated
+  EndSelect:       Separated
+  EndSubmodule:    Separated
+  EndSubroutine:   Separated
+  EndType:         Separated
+  EndWhere:        Separated
+EnsureNewlineAtEOF: true
+ConsecutiveEmptyLines:
+  MaxToKeep:       1
+  BetweenProcedures: 1
+  RemoveAtStartOfFile: true
+  RemoveAtEndOfFile: true
+KindKeywordPrefix: AddAlways
+RelationalOperators: UseSymbols
+SpacesAroundOperators:
+  LeftParenthesisExpression: NoTrailing
+  LeftParenthesisGeneric: NoSpaces
+  LeftParenthesisKeyword: OnlyLeading
+  RightParenthesisExpression: NoLeading
+  RightParenthesisGeneric: NoLeading
+  RightParenthesisKeyword: NoLeading
+  Assignment:      Both
+  Association:     Both
+  ControlFlowAssignment: Both
+  KeywordAssignment: NoSpaces
+  ParameterAssignment: NoSpaces
+  BinaryArithmetic: Both
+  Exponentiation:  NoSpaces
+  DefinedBinary:   Both
+  DefinedUnary:    NoTrailing
+  Relational:      Both
+  RelationalLegacy: Both
+  LogicalBinary:   Both
+  LogicalNot:      NoTrailing
+  UnaryPlusMinus:  NoTrailing
+  Comma:           OnlyTrailing
+  Concat:          Both
+  DoubleColon:     Both
+RemoveConsecutiveWhitespace: true
+RemoveSemicolons: true
+RemoveTrailingWhitespace: true
+SeparateMultipleInlineStatements: true
+...
