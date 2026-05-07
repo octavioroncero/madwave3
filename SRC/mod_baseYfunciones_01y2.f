@@ -581,7 +581,7 @@ c              isi=(-1.d0)**(iomdi)
       write(6,*)'nointegerproc_mem= ',nointegerproc_mem
       call flush(6)
       
-      noBCstates(:,:)=0
+      noBCstates(:,:)=nvini-1
       ediat(:,:,:)=0.d0
       fd(:,:,:,:)=0.d0
       xx(:)=0.d0
@@ -1089,7 +1089,7 @@ c            endif
      & , stat=ierror)
 
       fdprod(:,:,:,:)=0.d0
-      noBCprod(:)=0
+      noBCprod(:)=nviniprod-1
       elecprodmax(:,:)=0
       vibelecprod(:,:)=0
 
@@ -1207,13 +1207,13 @@ c            endif
 
 !     reference energy for iprod.eq.1
  
-         ediatref=0.d0
-
-         if(nvref.le.nvmaxprod.and.nvref.ge.nviniprod)then
-            ediatref=ediatprod(nvref,jref)
-         endif
 
          if(iprod.eq.1)then
+            ediatref=0.d0
+
+            if(nvref.le.nvmaxprod.and.nvref.ge.nviniprod)then
+               ediatref=ediatprod(nvref,jref)
+            endif
             write(6,*)' reference energy in products= '
      &                   ,ediatref/conve1/8065.5d0
             if(idproc.eq.0)then

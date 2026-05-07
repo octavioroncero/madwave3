@@ -1829,6 +1829,7 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
       real*8 :: alpha(npun),beta(npun),v(npun),p(npun),vv(npun)
       real*8 :: ah,xl,xz,xz1,eps,a,b,r,e0,e2
       integer :: maxit,ivreal,ie,ir,iv,nchan,kv,itry
+      integer :: maxvib_real
 
       Eval(:)=0.d0
       fun(:,:,:)=0.d0
@@ -1892,8 +1893,13 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
          if(nchan.gt.0)go to 44
 
 !     eigenvalues
-         
-         do iv=0,min0(npun,max_viblevels(ie)-1)
+
+         if(max_viblevels(ie).lt.0)then
+            maxvib_real=nvmax+1
+         else
+            maxvib_real=max_viblevels(ie)-1
+         endif
+         do iv=0,min0(npun,maxvib_real)
             if(potmatrix(npun,ie,ie)-alpha(iv+1).gt.1.d-2)then
                
                e0=alpha(iv+1)*xz1
@@ -1914,7 +1920,11 @@ c       call dspev('v','l',ntot,Hmat,eigen,T,ntotaux,wwork,inf)
                  
                   vnumber(ivreal)=iv
                   enumber(ivreal)=ie
-                  
+               else
+                  write(6,*)' products with ielec,iv= ',ie,iv
+     &                     ,' exceed nvmaxprod= ',nvmax
+                  write(6,*)' increase nvmaxprod or '
+     &                 ,' redefine max_viblevels (ielec) in namelist'
                end if ! Energy below ekinmax
             end if              ! eigval < pot(Rmax)
          end do !iv=1,min(npun,max_viblevels(ie))

@@ -248,12 +248,12 @@
                   
                   if(icorte.ge.1)then
 !----                     
-                       write(6,*)' vcutmax= ',vcutmax,iang,r2,r1
-                        write(6,*)' eigenpot= ',eigenpot
-                         write(6,*)' Vmat '
-                        do ielec=1,nelecmax
-                         write(6,*)(vmat(jelec,ielec),jelec=1,nelecmax)
-                      enddo
+!                       write(6,*)' vcutmax= ',vcutmax,iang,r2,r1
+!                        write(6,*)' eigenpot= ',eigenpot
+!                         write(6,*)' Vmat '
+!                        do ielec=1,nelecmax
+!                         write(6,*)(vmat(jelec,ielec),jelec=1,nelecmax)
+!                      enddo
 !----                      
                     
                   endif
@@ -557,7 +557,7 @@
 !         if(r2.lt.absr2)then
             do ir1=1,npun1
             do iang=1,nangu
-               vang(ir1,iang)=0.d0
+               vang(ir1,iang)=vcutmax
                vangtot(ir1,iang)=0.d0
             enddo
             enddo

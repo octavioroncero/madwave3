@@ -254,6 +254,8 @@ c! the partition.
 
             call read_bnd(iv)
             call plot_bnd(iv)
+            
+            call bndassign(iv)
 
          enddo
       endif

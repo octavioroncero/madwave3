@@ -136,7 +136,7 @@
          nangproj1=nangu
          iprod=0
          allocate(max_viblevels(nelecmax))
-         max_viblevels(:)=0
+         max_viblevels(:)=-1
       write(6,*)
       write(6,*)'  products data'
       write(6,*)'  -------------'
