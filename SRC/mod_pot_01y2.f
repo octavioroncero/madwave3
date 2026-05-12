@@ -557,7 +557,7 @@
 !         if(r2.lt.absr2)then
             do ir1=1,npun1
             do iang=1,nangu
-               vang(ir1,iang)=vcutmax
+               vang(ir1,iang)=0.d0
                vangtot(ir1,iang)=0.d0
             enddo
             enddo
