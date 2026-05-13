@@ -164,7 +164,15 @@
             write(6,*)'  (nvmaxprod-nviniprod+1)=',nvmaxprod-nviniprod+1
             write(6,*)'    no equal to the sum_ie of max_viblevels(ie)'
             call flush(6)
-            stop ' correct /inputprod/ and restart '
+            if(max_viblevels(1).eq.-1)then
+               write(6,*)' Calculating vibrational states: '
+     &              ,(nvmaxprod-nviniprod+1)
+     &              ,' distributted among all electronic states'
+            else
+               write(6,*)' correct /inputprod/ and restart '
+               call flush(6)
+               stop ' correct /inputprod/ and restart '
+            endif
          endif
 
       write(6,*)
