@@ -40,10 +40,8 @@
       integer, allocatable :: ii(:),jyj(:),vv(:),iiom_chan(:)
       integer, allocatable :: nord1(:)
 
-      real*8, allocatable :: potRg_fixed(:,:,:,:)
+      real*8, allocatable :: potRg_fixed(:,:,:,:),potBC(:)
 
-      double precision,allocatable :: Hmat(:,:),Eigen(:),T(:,:)
-      double precision,allocatable :: Hmattot(:,:)
       
       contains
 !------------------------------------
@@ -75,7 +73,7 @@
          do j=jini,jmax,inc
             do iom=iommax,iommin,-1
             if(iom.le.j)then
-               do iv=nvini,noBCstates(j,ielec)-1
+               do iv=nvini,noBCstates(j,ielec)
                   ichan=ichan+1
                   Easymp(ichan)=ediat(iv,j,ielec)
                   Assal(ichan)=ediat(iv,j,ielec)
@@ -83,6 +81,7 @@
                   nv_chan(ichan)=iv
                   j_chan(ichan)=j
                   iom_chan(ichan)=iom
+
                   ii(ichan)=ielec
                   jyj(ichan)=j
                   vv(ichan)=iv
@@ -130,19 +129,21 @@
       write(6,*)' '
       write(6,*)' ordered channels'
       write(6,*)' ________________'
-      write(6,*)nchan,'  ncanmax: i, v, j, ielec, Omg, Energy(eV) '
-      write(10,*)nchan,' ncanmax: i, v, j, ielec , Omega, E(eV)'
+      write(6,*)nchan,'  ncanmax: i, v, j, ielec, Omg, E(eV) E(cm) '
+      write(10,*)nchan,' ncanmax: i, v, j, ielec , Omega, E(eV) E(cm-1)'
       write(6,*)' _______________________________________________'
      
       do ichan=1,nchan
         
-         write(10,'(5(1x,i5),2x,e15.7)')ichan
+         write(10,'(5(1x,i5),2(2x,e15.7))')ichan
      &    ,nv_chan(ichan),j_chan(ichan),ielec_chan(ichan)
-     &    ,iom_chan(ichan),Easymp(ichan)/conve1/8065.5d0
+     &        ,iom_chan(ichan),Easymp(ichan)/conve1/8065.5d0
+     &         ,Easymp(ichan)/conve1
 
-         write(6,'(5(1x,i5),2x,d15.7)')ichan
+         write(6,'(5(1x,i5),2(2x,d15.7))')ichan
      &    ,nv_chan(ichan),j_chan(ichan),ielec_chan(ichan)
-     &    ,iom_chan(ichan),Easymp(ichan)/conve1/8065.5d0
+     &        ,iom_chan(ichan),Easymp(ichan)/conve1/8065.5d0
+     &        ,Easymp(ichan)/conve1
 
       enddo
       close(10)
@@ -275,7 +276,7 @@
       
 !--------------------------------------------------
 !--------------------------------------------------
-      subroutine  bfgridl2mat
+      subroutine bfgridl2mat
 !-------------------------------------------------!
 !      l² terms represented in the angular grid   !
 !             for evaluation of H phi             !
@@ -479,7 +480,6 @@
       rHpaqproc(:,:)=0.d0
       rHpaqrec(:)=0.d0
 
-      
 ******************
 **  1) T Phi(t) **
 ******************
@@ -552,26 +552,25 @@
                         itot=indtotRproc(ir1,icanp,jangp,idproc)
                         itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
                      rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-     &                   +rpaqproc(itot)*(xj2(ir1,iang,jangp,icanp))
-!     &                   +rpaqproc(itot)*(xj2(ir1,iang,jangp,icanp)
-!     &                       +xl2p(ir2_adiabatic,iang,jangp,icanp,0))
+     &                   +rpaqproc(itot)*(xj2(ir1,iang,jangp,icanp)
+     &                       +xl2p(ir2_adiabatic,iang,jangp,icanp,0))
                      enddo
-!                  elseif(iom.eq.iom2+1.and.ielec.eq.ielec2)then
-!                     do ir1=1,npun1
-!                        itot=indtotRproc(ir1,icanp,jangp,idproc)
-!                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
-!                    rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-!     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,1)
-!                        
-!                     enddo
-!                  elseif(iom.eq.iom2-1.and.ielec.eq.ielec2)then
-!                     do ir1=1,npun1
-!                        itot=indtotRproc(ir1,icanp,jangp,idproc)
-!                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
-!                       rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
-!     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,-1)
-!                       
-!                     enddo
+                  elseif(iom.eq.iom2+1.and.ielec.eq.ielec2)then
+                     do ir1=1,npun1
+                        itot=indtotRproc(ir1,icanp,jangp,idproc)
+                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
+                    rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,1)
+                        
+                     enddo
+                  elseif(iom.eq.iom2-1.and.ielec.eq.ielec2)then
+                     do ir1=1,npun1
+                        itot=indtotRproc(ir1,icanp,jangp,idproc)
+                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
+                       rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,-1)
+                       
+                     enddo
                  endif
                enddo ! ican2p
 
@@ -618,6 +617,171 @@
      
       return
       end subroutine HphiR
+!-------------------------------------------------------------
+      subroutine HphiR_CC(ichannel)
+*********************************************************************
+**                  Subroutine HphiR_cc                            **
+**                                                                 **
+**                Evaluates  H Phi(t)                              **
+**            using Reactant Jacobi coordinates                    **
+**         at frozen R2=Rg--> ir2_adiabatic,    r2_adiabatic       **
+**                                                                 **
+*********************************************************************
+
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      implicit none
+      include "mpif.h"
+
+      integer :: ichannel
+
+      integer :: ierror
+      
+      integer*8 plan,flags
+      INTEGER :: req, status(MPI_STATUS_SIZE),ierr
+      
+      real*8 :: xp2r2p2r1(npun2,npun1),rphi0(npun2,npun1)
+      real*8 :: auxR(npun1*npun2),raux(npun2,npun1)
+      integer :: icanp,ican,ielec,iom,jangp,jang,ir1,ir2,ir
+      integer :: i,nn2,nn1,iii,i1,i2,ican2p,ican2,ielec2,iom2
+      integer :: itotp,jdproc,iangp,iang,jdprocc,nsend,nreceived
+      integer :: semaforo
+      integer*8 :: max_semaforo,icount,i0
+      real*8 :: divi,ekin
+      integer :: iang_proc,ican_proc,ir1p,itot
+      
+      rHpaqproc(:,:)=0.d0
+      rHpaqrec(:)=0.d0
+
+*********************
+**  1) H_BC Phi(t) **
+*********************
+
+      do ican_proc=1,ncanproc(idproc)
+         ican=ibasproc(ican_proc,idproc)
+         ielec=nelebas(ican)
+         iom=iombas(ican)
+         if(ielec.eq.ielec_chan(ichannel)
+     &             .and.iom.eq. iom_chan(ichannel))then
+            do iang_proc=1,nanguproc
+                iang=indangreal(iang_proc,idproc)
+               do ir1=1,npun1
+                  i= indtotRproc(ir1,ican_proc,iang_proc,idproc)
+                  rHpaqrec(i) = rHpaqrec(i) +
+     &                          rpaqproc(i) * Easymp(ichannel)
+               end do               ! ir1
+            end do ! iang_proc
+         end if 
+      end do               ! ican
+             
+******************
+**  2) V Phi(t) **
+******************
+      do icanp=1,ncanproc(idproc)
+         ican=ibasproc(icanp,idproc)
+         ielec=nelebas(ican)
+         iom=iombas(ican)
+         do jangp=1,nanguproc
+            jang=indangreal(jangp,idproc)
+
+
+            do ican2p=1,ncanproc(idproc)
+                ican2=ibasproc(ican2p,idproc)
+                ielec2=nelebas(ican2)
+                iom2=iombas(ican2)
+                if(iom.eq.iom2)then
+                   do ir1=1,npun1 
+                      itot=indtotRproc(ir1,icanp,jangp,idproc)
+                      itotp=indtotRproc(ir1,ican2p,jangp,idproc)
+                      rHpaqrec(itotp)=rHpaqrec(itotp)+ rpaqproc(itot)
+     &              *(potRg_fixed(ir1,jangp,ielec,ielec2)-potBC(ir1) )
+                   enddo
+                endif
+            enddo
+
+******************************
+**>>  3) l^2
+******************************
+
+            do jdprocc=1,ncouproc(idproc)
+            jdproc=ipcou(jdprocc,idproc)
+            do iangp=1,nanguproc
+               iang=indangreal(iangp,jdproc)
+               do ican2p=1,ncanproc(jdproc)
+                  ican2=ibasproc(ican2p,jdproc)   
+                  iom2=iombas(ican2)
+                  ielec2=nelebas(ican2)
+                  if(iom.eq.iom2.and.ielec.eq.ielec2)then
+                     do ir1=1,npun1
+                        itot=indtotRproc(ir1,icanp,jangp,idproc)
+                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
+                     rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &           +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,0)
+                            
+                     enddo
+                  elseif(iom.eq.iom2+1.and.ielec.eq.ielec2)then
+                     do ir1=1,npun1
+                        itot=indtotRproc(ir1,icanp,jangp,idproc)
+                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
+                    rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,1)
+                        
+                     enddo
+                  elseif(iom.eq.iom2-1.and.ielec.eq.ielec2)then
+                     do ir1=1,npun1
+                        itot=indtotRproc(ir1,icanp,jangp,idproc)
+                        itotp=indtotRproc(ir1,ican2p,iangp,jdproc)
+                       rHpaqproc(itotp,jdprocc)=rHpaqproc(itotp,jdprocc)
+     &          +rpaqproc(itot)*xl2p(ir2_adiabatic,iang,jangp,icanp,-1)
+                       
+                     enddo
+                 endif
+               enddo ! ican2p
+
+            enddo  ! iangp
+            enddo  ! jdprocc
+
+         enddo   ! jangp
+
+      enddo ! icanp
+
+** sending all parts to the corresponding processor
+
+      do jdprocc=1,ncouproc(idproc)
+         jdproc=ipcou(jdprocc,idproc)
+
+         if(jdproc.eq.idproc)then
+
+            do itotp=1,ntotRproc(idproc)
+              rHpaqrec(itotp)=rHpaqrec(itotp)+rHpaqproc(itotp,jdprocc)
+            enddo
+
+         else
+
+             nsend=ntotRproc(jdproc)
+             nreceived=ntotRproc(idproc)
+             do itotp=1,ntotRproc(jdproc)
+                rHpaqsend(itotp)=rHpaqproc(itotp,jdprocc)
+             enddo
+          
+             call MPI_IRECV(recibo,nreceived,MPI_REAL8,jdproc,jdproc
+     &                  ,MPI_COMM_WORLD,req,ierr)
+             call MPI_SEND(rHpaqsend,nsend,MPI_REAL8,jdproc,idproc
+     &                  ,MPI_COMM_WORLD,ierr)
+             call MPI_WAIT(req,status, ierr)
+         
+             do itotp=1,ntotRproc(idproc)
+                rHpaqrec(itotp)=rHpaqrec(itotp)+ recibo(itotp)
+             enddo
+
+          endif
+      enddo  ! jdprocc
+     
+**end mpi communication
+     
+      return
+      end subroutine HphiR_cc
 !-------------------------------------------------------------
       subroutine Tradial1
       use mod_gridYpara_01y2
@@ -685,8 +849,9 @@
       
 **>> Angular kinetic terms 
 
-      call  angkinj2
+      call angkinj2
       call bfgridl2mat
+      
 * Kinetic term for r1=rp
 * for radial derivatives
 * represented in a grid, using sinc functions to start
@@ -716,6 +881,8 @@
       include "mpif.h"
       
       integer :: ichan,ican_proc,ican,ielec,iom,iang_proc,iang,ir1,itot
+      integer :: maxtot
+      real*8 :: xnorm
       
        rpaqproc(:)=0.d0
        do ican_proc=1,ncanproc(idproc)
@@ -724,18 +891,27 @@
           iom=iombas(ican)
           if(ielec.eq.ielec_chan(ichan)
      &             .and.iom.eq. iom_chan(ichan))then
-               
+
               do iang_proc=1,nanguproc
                  iang=indangreal(iang_proc,idproc)
                  do ir1=1,npun1
                     itot= indtotRproc(ir1,ican_proc,iang_proc,idproc)
+                    if(itot.gt.maxtot)maxtot=itot
                     rpaqproc(itot)=rpaqproc(itot)+
      &                        Djmmp(iang,j_chan(ichan),ielec,iom)
      &                    *fd(ir1,nv_chan(ichan),j_chan(ichan),ielec)
                  enddo
               enddo
             endif
-         enddo               ! icanproc
+         enddo                  ! icanproc
+
+
+!         xnorm=0.d0
+!         do itot=1,maxtot
+!            xnorm=xnorm+rpaqproc(itot)**2
+!         enddo
+!         write(6,*)'  norm of initial state= ',xnorm,maxtot
+!     &                          ,ntotRproc(idproc)
          return
          end subroutine set_rpaq_funchan
 !--------------------------------------------------
@@ -777,6 +953,55 @@
       return
       end subroutine V_Rg_fixed
 !--------------------------------------------------
+      subroutine read_potBC
+      use mod_gridYpara_01y2
+      use mod_pot_01y2
+      use mod_baseYfunciones_01y2
+      implicit none
+      integer, parameter :: Npun_max=5000
+      integer :: npun,ie,ir,nreal,iold
+      real*8, allocatable :: xx(:),ff(:,:)
+      character*50 :: name_potBC
+      real*8 :: r,spl
 
+      allocate( xx(Npun_max),ff(Npun_max,2),potBC(npun1) )
+      potBC(:)=0.d0
+
+      write(6,*)' Reading Diatomic potentials in :'
+      do ie=1,nelec
+         xx(:)=0.d0
+         ff(:,:)=0.d0
+         write(name_potBC,"('../potr.e',i2.2)")ie
+         write(6,*)' ie= ',ie,name_potBC
+         open(10,file=name_potBC,status='old')
+         nreal=0
+         do ir=1,npun_max
+            read(10,*,end=1)xx(ir),ff(ir,1)
+            npun=ir
+            ff(ir,1)=ff(ir,1)*ev2cm*conve1-ediatref
+            ff(ir,2)=0.d0
+         end do
+         
+ 1       continue
+         close(10)
+
+         call splset(ff,xx,npun,npun_max)
+         iold=2
+         do ir=1,npun1
+            r=rmis1+dble(ir-1)*ah1
+            if(r.ge.xx(1).and.r.le.xx(npun))then
+               call splinqq(ff,xx,iold,npun,r,npun_max,spl)
+               potBC(ir)=spl
+            end if
+
+            write(6,*)r,potBC(ir)
+         enddo
+        
+      end do ! ie
+      deallocate(xx,ff)
+      
+
+      return
+      end subroutine  read_potBC
 !=======================================================
       end module mod_HphiR_01y2

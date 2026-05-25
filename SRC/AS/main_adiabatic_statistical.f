@@ -43,6 +43,8 @@
       integer :: ntotR2,ntotR2_proc,i,nnn
       integer :: ierr,nntotproc,nnbastotproc,iv,n1,n2,ival
       double precision :: xn,xnorm,ener,enertot,ediag,uno,r2
+      double precision,allocatable :: Hmat(:,:),Eigen(:),T(:,:)
+      double precision,allocatable :: Hmattot(:,:)
       integer :: ichan,j,jchan,nvecplot,ierror
 
       include "mpif.h"
@@ -83,10 +85,13 @@ c! the partition.
 !     reading potential
 
       call pot2
+      call read_potBC
       
 !    dimensioning vectors for propagation,
 !     calculating kinetic energy terms, etc
 !    to evaluate H phi in a radial/angular grid & basis for Omega/electronic
+
+**>> grid dependent radial  kinetic term, and angular terms
 
       call Tradial1
       write(6,*) 'end initialization H'
@@ -127,7 +132,7 @@ c! the partition.
              call set_rpaq_funchan(ichan)
 !             call HphiR
              call Hmatrix(rpaqproc,rHpaqrec
-     &               ,ntotRproc(idproc),nbastotRproc)
+     &            ,ntotRproc(idproc),nbastotRproc,ichan)
              do jchan=ichan,nchan
                 call set_rpaq_funchan(jchan)
                 xn=0.d0
@@ -144,12 +149,12 @@ c! the partition.
      &                             ,0,MPI_COMM_WORLD,ierr)
 
           if(idproc.eq.0)then
-             write(15,'(10000(1x,e20.10))')r2
+             write(15,'(10000(1x,e20.10))')r2/convl
      &            ,(Hmattot(i,i)/conve1/8065.5d0/27.211,i=1,nchan)
              call flush(15)
              call diagon(Hmattot,nchan,nchan,T,eigen)
 
-             write(16,'(10000(1x,e20.10))')r2
+             write(16,'(10000(1x,e20.10))')r2/convl
      &       ,(eigen(i)/conve1/8065.5d0/27.211,i=1,nchan)
              call flush(16)
           endif
@@ -240,16 +245,16 @@ c! the partition.
 
 *************************************************************
 
-      subroutine Hmatrix(eigen,Hu,nntotproc,nnbastotproc)
+      subroutine Hmatrix(eigen,Hu,nntotproc,nnbastotproc,ichannel)
       use mod_gridYpara_01y2
       use mod_pot_01y2
       use mod_baseYfunciones_01y2
       use mod_absorcion_01y2
-      use mod_HphiR_01y2
+      use mod_HphiR_01y2, only: rpaqproc,rHpaqrec, HphiR,HphiR_cc
       implicit none
       integer :: nntotproc,nnbastotproc
       double precision :: Hu(nnbastotproc),eigen(nnbastotproc)
-      integer :: i
+      integer :: i,ichannel
 
       include "mpif.h"
 
@@ -258,7 +263,8 @@ c! the partition.
          rHpaqrec(i)=0.d0
       enddo
 
-      call HphiR
+!     call HphiR
+      call HphiR_CC(ichannel)
 
       do i=1,nntotproc
          Hu(i)=rHpaqrec(i)

@@ -130,8 +130,8 @@ c! the partition.
      &                     *Ephoton*Ephoton*Ephoton *Aconstant_au)
          if(idproc.eq.0)then
          write(6,'(2(1x,i3),2(1x,d15.7)
-     &              ," v_i  v_f  A_{vi vf} E_photon")')
-     &           iv_ini,iv_fin,Apartial(iv_fin),Ephoton_eV
+     &              ," v_i  v_f overlap^2 A_{vi vf} E_photon")')
+     &           iv_ini,iv_fin,xmat*xmat,Apartial(iv_fin),Ephoton_eV
          endif
          Atot=Atot+Apartial(iv_fin)
 
