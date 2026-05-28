@@ -151,7 +151,9 @@ c! the partition.
           if(idproc.eq.0)then
              write(15,'(10000(1x,e20.10))')r2/convl
      &            ,(Hmattot(i,i)/conve1/8065.5d0/27.211,i=1,nchan)
+             
              call flush(15)
+             
              call diagon(Hmattot,nchan,nchan,T,eigen)
 
              write(16,'(10000(1x,e20.10))')r2/convl

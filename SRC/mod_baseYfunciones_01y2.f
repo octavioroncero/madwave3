@@ -1068,17 +1068,25 @@ c            endif
       
       implicit none
       include "mpif.h"
+      integer, parameter :: npunt_adiabatic=2000
+      integer :: npunt
 
-      real*8 :: potmatrix(n2prod1,nelecmax,nelecmax)
-     &     ,potmat(nelecmax,nelecmax)
-     &     ,fun(n2prod1,nelecmax,nviniprod:nvmaxprod)
+      real*8,allocatable :: potmatrix(:,:,:),fun(:,:,:),xx(:),ff(:,:)
+      real*8 :: potmat(nelecmax,nelecmax)
      &     ,eval(nviniprod:nvmaxprod)
      &     ,T(nelecmax,nelecmax),eigen(nelecmax)
 
       real*8 :: rmis,rfin,ah,rg,ctet,xm,xz,r,xnorm
-      real*8 :: xnormele,xnormele_max
-      integer :: ierror,ir,ie,je,j,iv,ielec,ir2,ielecmax,ivreal
+      real*8 :: xnormele,xnormele_max,spl
+      integer :: ierror,ir,ie,je,j,iv,ielec,ir2,ielecmax,ivreal,iold
 
+      npunt=npunt_adiabatic
+      if(diabatic_prod_pot.gt.0)npunt=npun2
+
+      allocate( potmatrix(npunt,nelecmax,nelecmax)
+     &     ,fun(npunt,nelecmax,nviniprod:nvmaxprod)
+     &     ,ff(npunt,2),xx(npunt) )
+      
       allocate(ediatprod(nviniprod:nvmaxprod,jiniprod:jmaxprod)
      & ,fdprod(n2prod1,nviniprod:nvmaxprod,jiniprod:jmaxprod,nelecmax)
      & ,elecprodmax(nviniprod:nvmaxprod,jiniprod:jmaxprod)
@@ -1108,7 +1116,8 @@ c            endif
 !a)  grid determination (in a.u.: de rest is in zots)
 
          rmis=rmis2/convl
-         ah=ah2/convl
+         rfin=rfin2/convl
+         ah=(rfin-rmis)/dble(npunt-1)
          rg=R1inf_radial_functions/convl
          ctet=+1.d0
          xm=xm1prod*convm
@@ -1120,7 +1129,7 @@ c            endif
             open(10,file='potdia-prod02.dat',status='unknown')
          endif
          
-         do ir=1,n2prod1
+         do ir=1,npunt
             r=rmis+dble(ir-1)*ah
             call potelebond(rg,r,ctet,potmat,nelec,nelecmax)
 
@@ -1146,7 +1155,6 @@ c            endif
             endif
             
          enddo
-         rfin=rmis+dble(n2prod1-1)*ah
          if(idproc.eq.0)then
             close(10)
             close(11)
@@ -1163,7 +1171,7 @@ c            endif
             else
                
                call bndbc1ele(Eval,fun,potmatrix,xm
-     &              ,rmis,rfin,nviniprod,nvmaxprod,j,n2prod1,nelec
+     &              ,rmis,rfin,nviniprod,nvmaxprod,j,npunt,nelec
      &              ,vnumber_prod,enumber_prod
      &              ,max_viblevels,ivreal)
 
@@ -1177,11 +1185,44 @@ c            endif
                xnormele_max=0.d0
                do ielec=1,nelec
                   xnormele=0.d0
-                  do ir2=1,n2prod1
-                     fdprod(ir2,iv,j,ielec) = fun(ir2,ielec,iv)
-     &                                    * dsqrt(ah2/convl)
-                     xnormele=xnormele+fdprod(ir2,iv,j,ielec)**2
-                  enddo
+
+
+                  if(diabatic_prod_pot.gt.0)then
+                  
+                     do ir2=1,n2prod1
+                        fdprod(ir2,iv,j,ielec) = fun(ir2,ielec,iv)
+     &                                       * dsqrt(ah2/convl)
+                        xnormele=xnormele+fdprod(ir2,iv,j,ielec)**2
+                     enddo
+                  else
+                     do ir=1,npunt
+                        r=rmis+dble(ir-1)*ah
+                        xx(ir)=r
+                        ff(ir,1)=fun(ir,ielec,iv)/dsqrt(convl)
+                        ff(ir,2)=0.d0
+                     end do
+                     call splset(ff,xx,npunt,npunt)
+                     iold=2
+                     do ir2=1,n2prod1
+                        r=rmis2+dble(ir2-1)*ah2
+                        r=r/convl
+                        if(r.ge.xx(1).and.r.le.xx(npunt))then
+                           call splinqq(ff,xx,iold,npunt,r,npunt,spl)
+                           fdprod(ir2,iv,j,ielec)=spl
+                           xnormele=xnormele+fdprod(ir2,iv,j,ielec)**2
+                        end if
+                     end do
+                     xnormele=xnormele*ah2
+                     if(xnormele.gt.1.d-8)then
+                        do ir2=1,n2prod1
+                        fdprod(ir2,iv,j,ielec) = fdprod(ir2,iv,j,ielec)
+     &                                         * dsqrt(ah2/xnormele)
+                        end do
+                     end if 
+                     write(6,*)' xnormele= ',xnormele,iv,j,ielec
+                  
+                  end if
+                  
                   if(xnormele.gt.xnormele_max)then
                      xnormele_max=xnormele
                      ielecmax=ielec
@@ -1207,7 +1248,6 @@ c            endif
 
 !     reference energy for iprod.eq.1
  
-
          if(iprod.eq.1)then
             ediatref=0.d0
 
@@ -1372,7 +1412,6 @@ c            endif
       enddo
       enddo
 
-      
 !     writting energies
 
       write(6,*)

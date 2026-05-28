@@ -63,7 +63,7 @@
       include "mpif.h"
 
       integer :: ir1,ir2,iang,iang_proc,ican,ican_proc,ir,ip
-      integer :: ielec,iflux,j,iv,ie
+      integer :: ielec,iflux,j,iv,ie,ivmax
       real*8 :: r1,abstot,r2,xk,delta2r,box1
       integer :: ierror,iloop0,indt,it0,mcan,m,k
       integer*8 :: imem
