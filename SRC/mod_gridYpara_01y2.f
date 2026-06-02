@@ -159,7 +159,9 @@
          do ie=1,nelecmax
             icount=icount+max_viblevels(ie)
          enddo
-         if(icount.ne.(nvmaxprod-nviniprod+1).and.iprod.eq.2)then
+         if(icount.ne.(nvmaxprod-nviniprod+1).and.iprod.eq.2
+     &        .and.icount.gt.0)then
+            
             write(6,*)' in input_grid, namelist /inputprod/ '
             write(6,*)'  (nvmaxprod-nviniprod+1)=',nvmaxprod-nviniprod+1
             write(6,*)'    no equal to the sum_ie of max_viblevels(ie)'

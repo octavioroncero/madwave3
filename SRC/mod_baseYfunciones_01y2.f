@@ -1178,7 +1178,7 @@ c            endif
             end if
 !e)    eigenfunctions
 
-            do iv=nviniprod,ivreal
+            do iv=nviniprod,min0(ivreal,nvmaxprod)
                xnorm=0.d0
                ediatprod(iv,j)=eval(iv)/conve*conve1
                ielecmax=0
@@ -1243,7 +1243,7 @@ c            endif
             enddo ! iv
 
             ielec=1
-            noBCprod(j)=ivreal
+            noBCprod(j)=min0(ivreal,nvmaxprod)
          enddo  ! j
 
 !     reference energy for iprod.eq.1
