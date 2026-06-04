@@ -17,7 +17,7 @@
       integer :: Jtotini,iparini,nvbound,nprocbnd,maxbnddim
       integer :: sigmaini_elec
       integer :: ifileauto,igridbnd
-      real*8, allocatable :: dipol(:,:,:,:)
+      real*8, allocatable :: dipol(:,:,:,:,:)
       real*8, allocatable :: coupling(:,:,:)
       real*8 :: energy_ini_eV,xnorm_ini
       real*8,allocatable :: factresj(:,:,:)
@@ -36,12 +36,14 @@
       implicit none
       include "mpif.h"
       
-      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,ierror
+      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,ierror,ielec_bnd
       real*8 :: r1,r2,cgam
       real*8 :: rpeq,Rg,ctet,X1,gam,X2,calpha
       
       real*8 :: dx(nelecmax),dy(nelecmax),dz(nelecmax)
-      real*8 :: dip(-1:1,nelecmax)
+      real*8 :: dx_mat(nelecmax,nelec_bnd),dy_mat(nelecmax,nelec_bnd)
+     &         ,dz_mat(nelecmax,nelec_bnd)
+      real*8 :: dip(-1:1,nelecmax,nelec_bnd)
 
       write(6,*)
       write(6,*)'   --------------------------------'
@@ -51,6 +53,8 @@
       call flush(6)
       
       call setdipini
+
+      dip(:,:,:)=0.d0
       
       do iang_proc=1,nanguprocdim
          iang=indangreal(iang_proc,idproc)
@@ -76,30 +80,55 @@
             if(dabs(calpha).gt.1.d0)then
                calpha=calpha/dabs(calpha)
             endif
-            
-            call dipele(rpeq,Rg,cgam,dx,dy,dz,nelecmax,nelecmax)
 
-            do ielec=1,nelecmax
-               if(dabs(dx(ielec)).gt.1.d-10
-     &           .or.dabs(dz(ielec)).gt.1.d-10)then
-                  dip(0,ielec)=dz(ielec)
-                  dip(1,ielec)=-dx(ielec)/dsqrt(2.d0)
-                  dip(-1,ielec)=dx(ielec)/dsqrt(2.d0)
-               elseif(dabs(dy(ielec)).gt.1.d-10)then
-                  dip(0,ielec)=0.d0
-                  dip(1,ielec)=dy(ielec)/dsqrt(2.d0)
-                  dip(-1,ielec)=dy(ielec)/dsqrt(2.d0)
-               else
-                  dip(0,ielec)=0.d0
-                  dip(1,ielec)=0.d0
-                  dip(-1,ielec)=0.d0
-               endif
-            enddo
+            if(nelec_bnd.eq.1)then
+               ielec_bnd=1
+               call dipele(rpeq,Rg,cgam,dx,dy,dz,nelecmax,nelecmax)
 
+               do ielec=1,nelecmax
+                  if(dabs(dx(ielec)).gt.1.d-10
+     &              .or.dabs(dz(ielec)).gt.1.d-10)then
+                     dip(0,ielec,ielec_bnd)=dz(ielec)
+                     dip(1,ielec,ielec_bnd)=-dx(ielec)/dsqrt(2.d0)
+                     dip(-1,ielec,ielec_bnd)=dx(ielec)/dsqrt(2.d0)
+                  elseif(dabs(dy(ielec)).gt.1.d-10)then
+                     dip(0,ielec,ielec_bnd)=0.d0
+                     dip(1,ielec,ielec_bnd)=dy(ielec)/dsqrt(2.d0)
+                     dip(-1,ielec,ielec_bnd)=dy(ielec)/dsqrt(2.d0)
+                 endif
+               enddo
+            elseif(nelec_bnd.gt.1)then
+               call dipele_mat(rpeq,Rg,cgam,dx_mat,dy_mat,dz_mat
+     &                         ,nelecmax,nelec_bnd)
+
+               do ielec_bnd=1,nelec_bnd
+               do ielec=1,nelecmax
+                  if(dabs(dx_mat(ielec,ielec_bnd)).gt.1.d-10
+     &              .or.dabs(dz_mat(ielec,ielec_bnd)).gt.1.d-10)then
+                     dip(0,ielec,ielec_bnd)=dz_mat(ielec,ielec_bnd)
+                     dip(1,ielec,ielec_bnd) = -dx_mat(ielec,ielec_bnd)
+     &                                      / dsqrt(2.d0)
+                     dip(-1,ielec,ielec_bnd) = dx_mat(ielec,ielec_bnd)
+     &                                      / dsqrt(2.d0)
+                  elseif(dabs(dy_mat(ielec,ielec_bnd)).gt.1.d-10)then
+                     dip(0,ielec,ielec_bnd)=0.d0
+                     dip(1,ielec,ielec_bnd) = dy_mat(ielec,ielec_bnd)
+     &                                      / dsqrt(2.d0)
+                     dip(-1,ielec,ielec_bnd) = dy_mat(ielec,ielec_bnd)
+     &                                       / dsqrt(2.d0)
+                 endif
+               enddo
+               enddo
+
+            else
+               write(6,*)' nelec_bnd= ',nelec_bnd
+     &              ,'  must be set in namelis  inputprocess '
+               call flush(6)
+               stop
+            endif
             write(10,*)ir1,ir2
-     &           ,((dip(iq,ielec),ielec=1,nelecmax),iq=-1,1)
-            write(68,*)rpeq,(dip(1,ielec),ielec=1,nelec)
-            write(69,*)rpeq,(dip(0,ielec),ielec=1,nelec)
+     &           ,(((dip(iq,ielec,ielec_bnd),ielec_bnd=1,nelec_bnd)
+     &                   ,ielec=1,nelecmax),iq=-1,1)
             
          enddo                  ! ir
          close(10)
@@ -123,10 +152,10 @@
       include "mpif.h"
      
       integer :: ierror
-      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,nsend
+      integer :: iang_proc,iang,ir,ir1,ir2,ielec,iq,nsend,ielec_bnd
       real*8 :: r1,r2,cgam,xxx
       
-      allocate(dipol(npuntot,nangu,nelecmax,-1:1)
+      allocate(dipol(npuntot,nangu,nelecmax,nelec_bnd,-1:1)
      &       , stat=ierror)
       norealproc_mem=norealproc_mem
      &    +npuntot*nangu*nelecmax*3
@@ -146,7 +175,8 @@
             ir1=indr1(ir,iang)
             ir2=indr2(ir,iang)
             read(10,*)ir1,ir2
-     &   ,((dipol(ir,iang,ielec,iq),ielec=1,nelecmax),iq=-1,1)
+     &           ,(((dipol(ir,iang,ielec,ielec_bnd,iq)
+     &               ,ielec_bnd=1,nelec_bnd),ielec=1,nelecmax),iq=-1,1)
          enddo                  ! ir
          close(10)
       enddo                     ! iang
@@ -392,7 +422,6 @@ c            write(ifileauto,*)0,1.d0
       return
       end subroutine dip_bnd
 !--------------------------------------------------
-!--------------------------------------------------
       subroutine dip_bnddiatomic
       use mod_gridYpara_01y2
       use mod_pot_01y2
@@ -447,7 +476,7 @@ c-----> end checking grids
                      iomini=iomdiat(ielecref)
                      iq=iom-iomini
                      if(iabs(iq).le.1)then
-                         y123=dipol(ir,iang,ielec,iq)
+                         y123=dipol(ir,iang,ielec,1,iq)
                          x123=factresj(iomini,iq,iom)
                          xxx=fd(ir1,nvbound,Jtotini,ielecref)
                          rpaq0(i)=rpaq0(i)+xxx*y123*x123
@@ -498,7 +527,7 @@ c-----> end checking grids
       real*8 :: ah1bnd,ah2bnd,x123,xnorm,xnormtot,y123,ssign
       real*8 :: yyy,xxx,coef,coef2,xx,yy,xnormbnd,xnormbnd_tot
       integer :: nr1bnd,nr2bnd,iommaxbnd,nelecmaxbnd,nangumin
-     &          ,iomminbnd
+     &          ,iomminbnd,ielec_bnd
 
       allocate(ielecbnd(maxbnddim),iombnd(maxbnddim)
      &     ,ir1bnd(maxbnddim),ir2bnd(maxbnddim),iangbnd(maxbnddim)
@@ -644,25 +673,27 @@ c-----> end checking grids
                   if(iphoto.eq.2)then
 
                      if(iom.le.iommaxbnd)then
-                        if(ielec.eq.ielecref)then
-                           xxx=bndvec(ir1,ir2,iang,iom,1)
-                           rpaq0(i)=rpaq0(i)+xxx
-                           xnormbnd=xnormbnd+xxx*xxx
-                        endif
-                    endif
-                  elseif(iphoto.eq.1)then
+                           if(ielec.le.nelec_bnd)then
+                              xxx=bndvec(ir1,ir2,iang,iom,ielec)
+                              rpaq0(i)=rpaq0(i)+xxx
+                              xnormbnd=xnormbnd+xxx*xxx
+                           end if
+                    end if
+                 elseif(iphoto.eq.1)then
+                     do ielec_bnd=1,nelec_bnd
                      do iomini=0,iommaxbnd
                         iq=iom-iomini
                         if(iabs(iq).le.1)then
-                         y123=dipol(ir,iang,ielec,iq)
+                         y123=dipol(ir,iang,ielec,ielec_bnd,iq)
                          x123=factresj(iomini,iq,iom)
 !                         xxx=bndvec(ir1,ir2,iang,iomini,ielec)
-                         xxx=bndvec(ir1,ir2,iang,iomini,1)
+                         xxx=bndvec(ir1,ir2,iang,iomini,ielec_bnd)
                          rpaq0(i)=rpaq0(i)+xxx*y123*x123
                          xnormbnd=xnormbnd+xxx*xxx
 
-                        endif
-                     enddo
+                        end if
+                     end do
+                     end do 
                   endif
                endif  ! ir1,ir2,ielec
             enddo  ! i
@@ -705,7 +736,7 @@ c-----> end checking grids
       integer :: j0ini,lmax,iang,iom,i,ir,iv2,iv1,ir2,ibas,nbnd,ir1
       real*8 :: energy_ini_cm,sum,popomg(0:Jtotini),y,xnorm,xang,xxx
       real*8 :: pop,fctr,y123,xx,yy,xnormtot,r1,r2
-      integer :: iq,ierror,j,icanp,ielec,iangp,ican,iomini
+      integer :: iq,ierror,j,icanp,ielec,iangp,ican,iomini,ielec_bnd
 
       ifile=111
       nbnd=nvbound
@@ -961,10 +992,11 @@ c         xnorm=xnorm+pop
          iang=indangreal(iangp,idproc)
 
          if(iphoto.eq.1)then
+            ielec_bnd=1
             do iomini=0,Jtotini
                iq=iom-iomini
                fctr=factresj(iomini,iq,iom)*dsqrt(ah1*ah2)
-               y123=fctr*dipol(ir,iang,ielec,iq)
+               y123=fctr*dipol(ir,iang,ielec,ielec_bnd,iq)
                rpaq0(i)=rpaq0(i)+Psini(ir,iang,iomini)*y123
             enddo
             

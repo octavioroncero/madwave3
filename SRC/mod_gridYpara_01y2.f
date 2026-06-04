@@ -45,7 +45,7 @@
 
 *     process
 
-      integer :: iphoto
+      integer :: iphoto,nelec_bnd
       real*8 :: photonorm
 
 *     products states analysis
@@ -103,7 +103,7 @@
      &     ,Rbalinprod,n2prod0,n2prod1,nangproj0,nangproj1
      &     ,Emincut_prod_eV
 *********************************************************
-      namelist /inputprocess/iphoto
+      namelist /inputprocess/iphoto,nelec_bnd
 *********************************************************
       namelist /inputwrite/iwrt_pot,iwrt_wvp,iwrt_reac_distri
      &                     ,n1plot,n2plot,nangplot              ! grid step on r1, r2, ang to print
@@ -177,6 +177,7 @@
             endif
          endif
 
+      nelec_bnd=1
       write(6,*)
       write(6,*)'  process data'
       write(6,*)'  ------------'
