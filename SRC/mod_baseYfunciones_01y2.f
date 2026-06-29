@@ -1219,7 +1219,7 @@ c            endif
      &                                         * dsqrt(ah2/xnormele)
                         end do
                      end if 
-!                    write(6,*)' xnormele= ',xnormele,iv,j,ielec
+CCCCCCCCCCCCCCCCCC   write(6,*)' xnormele= ',xnormele,iv,j,ielec
                   
                   end if
                   
