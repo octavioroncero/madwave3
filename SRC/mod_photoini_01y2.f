@@ -453,7 +453,7 @@ c            write(ifileauto,*)0,1.d0
 **>> Using diatomic states calculated in potini, and read radial_functions01_read
 
 
-          energy_ini_eV=ediat(nvbound,jtotini,ielecref)
+          energy_ini_eV=ediat(nvbound,jtotini,ielecref)/(conve1*eV2cm)
 
 c-----> end checking grids
 

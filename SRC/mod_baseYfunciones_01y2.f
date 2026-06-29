@@ -755,7 +755,7 @@ c                  fd(ir1,iv,j,ielec)=splinq(ff,xx,iold,npunt,r1,npunt)
                   call flush(6)
                   endif
             enddo
-            if(noBCstates(j,ielec).eq.0.and.ifail.eq.-1)then
+            if(noBCstates(j,ielec).le.0.and.ifail.eq.-1)then
                if(idproc.eq.0)write(6,*)' elec. stat. doesn"t support'
      &                   ,'  bound states for higher j values' 
                go to 1234
@@ -1219,7 +1219,7 @@ c            endif
      &                                         * dsqrt(ah2/xnormele)
                         end do
                      end if 
-                     write(6,*)' xnormele= ',xnormele,iv,j,ielec
+!                    write(6,*)' xnormele= ',xnormele,iv,j,ielec
                   
                   end if
                   

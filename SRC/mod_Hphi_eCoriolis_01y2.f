@@ -248,6 +248,7 @@
                   xLam=dble(iomdi)  
                   xkinj(i,j)=(xj*(xj+1.d0)-xLam*xLam)*hbr*hbr*0.5d0
                else if(iom.eq.jom.and.jbas(i,ican).eq.jbas(j,jcan)
+     &            .and. sigdiat(nelebas(ican)).eq.sigdiat(nelebas(jcan))
      &                 .and. iabs(jomdi-iomdi).eq.1)then
                   xj=dble(jbas(i,ican))
                   xLam=dsqrt( dble(iomdi*iomdi)+dble(jomdi*jomdi) )
@@ -256,6 +257,12 @@
                   if (jomdi.eq.0 .or. iomdi.eq.0)then
                      xkinj(i,j)=xkinj(i,j)*dsqrt(2.d0)
                   end if
+               else if(iom.eq.jom.and.jbas(i,ican).eq.jbas(j,jcan)
+     &            .and. sigdiat(nelebas(ican)).ne.sigdiat(nelebas(jcan))
+     &                 .and. iabs(jomdi-iomdi).eq.0)then
+                  
+                  xkinj(i,j)=xLam*xLam*hbr*hbr
+
                end if
             enddo
             enddo

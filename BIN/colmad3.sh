@@ -1,4 +1,4 @@
-dir=~/Dropbox/MadWave3/git-madwave3/SRC
+dir=../SRC
 dir2=$dir/AUXILIARy-CODES
 dir3=$dir/bound-lanz
 dir4=$dir/photo
