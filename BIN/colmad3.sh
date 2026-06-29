@@ -26,7 +26,7 @@ mpif77 -O3 -o mad3.out  mod_colini_01y2.o  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
        mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o \
        mod_absorcion_01y2.o mod_flux_01y2.o mod_coortrans01_02.o mod_PsiE_01y2.o\
        $dir/main_madwave3.f $dir/liboctdyn.f \
-       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f $dir/dipele_mat_general.f\
+       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f \
  -lfftw3
 
 
@@ -34,7 +34,7 @@ mpif77 -O3 -o mad3renner.out  mod_colini_01y2.o  mod_Hphi_eCoriolis_01y2.o mod_g
        mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o \
        mod_absorcion_01y2.o mod_flux_01y2.o mod_coortrans01_02.o mod_PsiE_01y2.o\
        $dir/main_madwave3.f $dir/liboctdyn.f \
-       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f $dir/dipele_mat_general.f\
+       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f \
  -lfftw3
 ######################  mad3.out
 rm bndgrid.out bndrenner.out
@@ -42,13 +42,13 @@ mpif77 -O3  -o bndgrid.out  mod_Hphi_01y2.o mod_gridYpara_01y2.o\
        mod_pot_01y2.o mod_baseYfunciones_01y2.o mod_photoini_01y2.o\
        mod_absorcion_01y2.o mod_lanczos_01y2.o\
        $dir3/main_boundlanz.f $dir/liboctdyn.f $dir3/liboctdynlanz.f \
-       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f $dir/dipele_mat_general.f\
+       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f \
  -lfftw3
 mpif77 -g -C  -o bndrenner.out  mod_Hphi_Renner_01y2.o mod_gridYpara_01y2.o\
        mod_pot_01y2.o mod_baseYfunciones_Renner_01y2.o mod_photoini_01y2.o\
        mod_absorcion_01y2.o mod_lanczos_01y2.o\
        $dir3/main_boundlanz.f $dir/liboctdyn.f $dir3/liboctdynlanz.f \
-       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f $dir/dipele_mat_general.f\
+       $dir/fit_general.f $dir/dipele_general.f $dir/coupling_general.f \
  -lfftw3
 
 ######################  distri.out & distriREAC.out
